@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+cd /opt/dreamfactory
+mkdir -p storage/app storage/databases storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/limit_cache storage/logs bootstrap/cache
+touch storage/databases/database.sqlite
+chown -R www-data:www-data storage bootstrap/cache
+
+php artisan optimize:clear
+service php8.5-fpm start
+service cron start
+
+exec /usr/sbin/nginx -g "daemon off;"

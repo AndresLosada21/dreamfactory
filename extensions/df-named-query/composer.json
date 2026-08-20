@@ -1,0 +1,23 @@
+{
+  "name": "yamaha/df-named-query",
+  "description": "Versioned, read-only named SQL queries for DreamFactory SQL services.",
+  "license": "Apache-2.0",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "dreamfactory/df-system": "~0.6.5",
+    "dreamfactory/df-sqldb": "~1.5.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Yamaha\\DreamFactory\\NamedQuery\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Yamaha\\DreamFactory\\NamedQuery\\ServiceProvider"
+      ]
+    }
+  }
+}

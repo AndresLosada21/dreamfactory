@@ -1,0 +1,143 @@
+{
+  "manageApplications": "Manage Applications",
+  "manage": "Manage",
+  "import": "Import",
+  "search": "Search",
+  "deleteApp": "Delete app",
+  "deleteSelectedApps": "Delete selected apps",
+  "launchApp": "Launch app",
+  "createSuccess": "API key created. Give it a role to control what it can access, or start calling your APIs with it.",
+  "updateSuccess": "App updated",
+  "sampleApps": {
+    "label": "Sample Apps",
+    "options": {
+      "android": "Android",
+      "iosObjectiveC": "iOS Objective-C",
+      "iosSwift": "iOS Swift",
+      "javascript": "JavaScript",
+      "angularJs": "AngularJS",
+      "angular2": "Angular 2",
+      "ionic": "Ionic",
+      "Titanium": "Titanium",
+      "ReactJS": "ReactJS",
+      "dotnet": ".NET"
+    }
+  },
+  "createApp": {
+    "applicationName": {
+      "label": "Application Name",
+      "tooltip": "The display name or label for your app, seen by users of the app in the LaunchPad UI.",
+      "error": "Application name required"
+    },
+    "defaultRoleFilter": "Default Role Filter",
+    "description": {
+      "label": "Description",
+      "tooltip": "The app description, seen by users of the app in the LaunchPad UI."
+    },
+    "defaultRole": {
+      "label": "Assign a Default Role",
+      "tooltip": "Unauthenticated or guest users of the app will have this role.",
+      "hint": "The role sets what this API key can access. Without one, the key reaches only open, non-role endpoints.",
+      "options": {
+        "noRole": "-- No available filtered roles --"
+      }
+    },
+    "active": "Active",
+    "apiKey": {
+      "label": "The API key for this app is",
+      "copy": "Copy API Key",
+      "refresh": "Refresh API Key"
+    },
+    "appLocation": {
+      "label": "App Location",
+      "tooltip": "Select File Storage if you want to store your app code on your DreamFactory instance or some other remote file storage. Select Native for native apps or running the app from code on your local machine (CORS required). Select URL to specify a URL for your app.",
+      "options": {
+        "noStorage": "No Storage Required - remote device, client, or desktop.",
+        "fileStorage": {
+          "label": "On a provisioned file storage service.",
+          "storageService": {
+            "label": "Storage Service",
+            "tooltip": "Where to store the files for your app.",
+            "options": {
+              "file": "Local File Storage",
+              "log": "Local Log Storage"
+            }
+          },
+          "storageFolder": {
+            "label": "Storage Folder",
+            "tooltip": "The folder on the selected storage service.",
+            "placeholder": "Enter Storage Container"
+          },
+          "launchPath": {
+            "label": "Launch Path",
+            "tooltip": "The is the file to load when your app is run. Default is index.html.",
+            "placeholder": "Enter default path and file to launch."
+          }
+        },
+        "webServer": {
+          "label": "On this web server.",
+          "pathToApp": {
+            "label": "Path to Application",
+            "tooltip": "The is the file to load when your app is run. Default is index.html."
+          }
+        },
+        "remoteUrl": {
+          "label": "On a remote URL.",
+          "url": {
+            "label": "URL to Application",
+            "tooltip": "Applications can consist of only a URL. This could be an app on some other server or a web site URL."
+          }
+        },
+        "urlPath": {
+          "label": "The URL for this app is:",
+          "copy": "Copy URL"
+        }
+      }
+    }
+  },
+  "virtualKey": {
+    "tokens": "Tokens",
+    "spend": "Spend",
+    "rateLimit": "Rate limit",
+    "noUsage": "No usage yet",
+    "noCap": "No cap",
+    "roleLink": "Open the {{role}} role",
+    "meterAria": "{{consumed}} of {{cap}} calls per {{period}} used",
+    "empty": {
+      "title": "No API keys yet",
+      "description": "API keys are metered virtual keys. Each carries a role that sets what it can reach, and its usage and limits show up right here.",
+      "action": "Create an API key"
+    }
+  },
+  "metering": {
+    "title": "Access and metering",
+    "subtitle": "What this key can reach, and how it is metered. Every figure below is live.",
+    "reachTitle": "What this key can reach",
+    "reachHintRole": "Resolved from the {{role}} role.",
+    "reachHintPending": "Pick a role above to scope this key. Without one, it reaches only open, non-role endpoints.",
+    "limitsTitle": "Rate limits",
+    "limitsEmpty": "No rate limit applies to this key's role. Add one to cap how often it can call your APIs.",
+    "limitsManage": "Manage limits",
+    "usageTitle": "Usage, last 30 days",
+    "usageEmpty": "No usage yet. Metrics appear here once this key starts calling your APIs.",
+    "tokensLabel": "Tokens",
+    "spendLabel": "Spend",
+    "requestsLabel": "Requests",
+    "perPeriod": "per {{period}}"
+  },
+  "importApp": {
+    "title": "Import Application",
+    "subtitle": "Select App Package File",
+    "description": "Select one of the sample apps below, enter the URL for a package file, or browse for a local package file. Click 'Import' to add the app to your DreamFactory instance.",
+    "url": {
+      "label": "Package URL",
+      "placeholder": "Enter URL to package file"
+    },
+    "optionsPrefix": "Address Book for ",
+    "storageService": "Storage Service (optional)",
+    "storageFolder": "Storage Folder (optional)",
+    "files": "Files",
+    "logs": "Logs",
+    "error": "File or File URL Required"
+  }
+}

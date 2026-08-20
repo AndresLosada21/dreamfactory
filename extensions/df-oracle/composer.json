@@ -1,0 +1,24 @@
+{
+  "name": "yamaha/df-oracle",
+  "description": "Independent Oracle database service for DreamFactory.",
+  "license": "Apache-2.0",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "dreamfactory/df-sqldb": "~1.5.0",
+    "yamaha/df-named-query": "^0.1",
+    "yajra/laravel-oci8": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Yamaha\\DreamFactory\\Oracle\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Yamaha\\DreamFactory\\Oracle\\ServiceProvider"
+      ]
+    }
+  }
+}

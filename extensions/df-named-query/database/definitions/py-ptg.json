@@ -1,0 +1,29 @@
+{
+  "service_name": "py_ptg_native",
+  "queries": [
+    {
+      "name": "acasala",
+      "description": "Returns assembly and production information by CMA.",
+      "sql": "SELECT vsibc.effect_stamp_image AS vin, substr(vsibc.eg_stamp_key, 1, 5) || '-' || substr(vsibc.eg_stamp_key, 7, 6) AS nr_carcaca, vsibc.assy_datetime AS data_hora_acasala, vsibc.assy_date AS dt_prod_chassi, vsiec.assy_date AS dt_prod_carcaca, vsibc.stamp_key AS cma FROM vic_s_int_bprd_ctl vsibc INNER JOIN vic_s_int_eprd_ctl vsiec ON vsiec.plan_stamp_image = substr(vsibc.eg_stamp_key, 1, 5) || '-' || substr(vsibc.eg_stamp_key, 7, 6) WHERE vsibc.stamp_key = :cma",
+      "parameters": [{"name": "cma", "type": "string", "required": true}],
+      "output_schema": [{"name": "vin"}, {"name": "nr_carcaca"}, {"name": "data_hora_acasala"}, {"name": "dt_prod_chassi"}, {"name": "dt_prod_carcaca"}, {"name": "cma"}],
+      "budgets": {"max_rows": 1}
+    },
+    {
+      "name": "chassi",
+      "description": "Returns chassis information by VIN.",
+      "sql": "SELECT vib.plan_stamp_image AS vin, vib.stamp_key AS cma, vib.model_name AS designacao_comercial, vib.color_type AS tipo_cor, vib.color_code AS codigo_cor, substr(vib.modelvarit_code, 1, 4) AS modelo_chassi, substr(vib.plan_assyline, 3, 1) AS linha_montagem, substr(vib.assy_date, 1, 4) AS ano_fabricacao FROM vic_s_int_bprd_ctl vib WHERE vib.plan_stamp_image LIKE :vin",
+      "parameters": [{"name": "vin", "type": "string", "required": true}],
+      "output_schema": [{"name": "vin"}, {"name": "cma"}, {"name": "designacao_comercial"}, {"name": "tipo_cor"}, {"name": "codigo_cor"}, {"name": "modelo_chassi"}, {"name": "linha_montagem"}, {"name": "ano_fabricacao"}],
+      "budgets": {"max_rows": 1}
+    },
+    {
+      "name": "motor",
+      "description": "Returns engine information by crankcase number.",
+      "sql": "SELECT vie.plan_stamp_image AS nr_carcaca, vie.stamp_key AS cma, vie.model_name AS modelo, substr(vie.plan_assyline, 3, 1) AS linha_montagem, vie.parent_part_no AS modelo_producao, substr(vie.parent_part_no, 1, 4) AS modelo_chassi FROM vic_s_int_eprd_ctl vie WHERE vie.plan_stamp_image LIKE :carcaca",
+      "parameters": [{"name": "carcaca", "type": "string", "required": true}],
+      "output_schema": [{"name": "nr_carcaca"}, {"name": "cma"}, {"name": "modelo"}, {"name": "linha_montagem"}, {"name": "modelo_producao"}, {"name": "modelo_chassi"}],
+      "budgets": {"max_rows": 1}
+    }
+  ]
+}

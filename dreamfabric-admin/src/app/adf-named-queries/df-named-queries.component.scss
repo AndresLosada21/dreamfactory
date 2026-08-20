@@ -1,0 +1,98 @@
+.named-queries {
+  max-width: var(--df-content-max, 1400px);
+  margin: 0 auto;
+  padding: 0 var(--df-page-gutter, 24px) 32px;
+
+  .error-banner {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: #fef2f2;
+    border-left: 3px solid #dc2626;
+    color: #991b1b;
+    padding: 12px 14px;
+    border-radius: 4px;
+    margin: 16px 0;
+  }
+
+  .layout {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: minmax(320px, 0.9fr) minmax(460px, 1.1fr);
+    align-items: start;
+  }
+
+  .catalog {
+    position: sticky;
+    top: 16px;
+  }
+
+  .query-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid #e4e6eb;
+    &:last-child { border-bottom: none; }
+  }
+
+  .query-meta { min-width: 0; }
+  .query-name { display: block; font-weight: 600; word-break: break-word; }
+  .query-desc { color: #667085; display: block; font-size: 13px; margin-top: 4px; word-break: break-word; }
+  .query-service { color: #98a2b3; display: block; font-size: 12px; margin-top: 2px; }
+
+  .query-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .badge {
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+  .badge-draft { background: #fef3c7; color: #92400e; }
+  .badge-published { background: #dcfce7; color: #166534; }
+
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #667085;
+    padding: 28px 12px;
+    text-align: center;
+  }
+
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+
+  .details-section {
+    display: grid;
+    gap: 6px;
+    padding-top: 16px;
+  }
+
+  .full-width { grid-column: 1 / -1; width: 100%; }
+  .dynamic-width { width: 100%; max-width: 520px; }
+
+  .action-bar {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+}
+
+@media (max-width: 960px) {
+  .named-queries .layout { grid-template-columns: 1fr; }
+  .named-queries .catalog { position: static; }
+  .named-queries .query-row { flex-direction: column; align-items: flex-start; }
+  .named-queries .query-actions { width: 100%; justify-content: space-between; }
+}

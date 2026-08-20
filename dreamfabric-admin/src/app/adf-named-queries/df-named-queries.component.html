@@ -1,0 +1,105 @@
+﻿<df-page-header
+  eyebrow="Governed data access"
+  title="Named Queries"
+  description="Create immutable query revisions and publish only reviewed definitions. All queries run as read-only with bound parameters.">
+  <div pageHeaderActions>
+    <button mat-stroked-button type="button" (click)="refresh()" aria-label="Refresh catalog">Refresh</button>
+  </div>
+</df-page-header>
+
+<div class="named-queries">
+  <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+  <p class="error-banner" *ngIf="error" role="alert">
+    <mat-icon aria-hidden="true">error</mat-icon>
+    <span>{{ error }}</span>
+  </p>
+
+  <div class="layout">
+    <mat-card class="catalog" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Catalog</mat-card-title>
+        <mat-card-subtitle>{{ queries.length }} {{ queries.length === 1 ? 'query' : 'queries' }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="query-row" *ngFor="let query of queries; trackBy: trackById">
+          <div class="query-meta">
+            <strong class="query-name">{{ query.name }}</strong>
+            <span class="query-desc">{{ query.description || 'No description' }}</span>
+            <span class="query-service">service #{{ query.service_id ?? query.serviceId }} | v{{ query.lock_version ?? query.lockVersion }}</span>
+          </div>
+          <div class="query-actions">
+            <span class="badge" [class.badge-published]="query.is_active ?? query.isActive" [class.badge-draft]="!(query.is_active ?? query.isActive)">{{ (query.is_active ?? query.isActive) ? 'Published' : 'Draft' }}</span>
+            <button mat-stroked-button type="button" (click)="publish(query)" [disabled]="publishingId === query.id">
+              {{ publishingId === query.id ? 'Publishingâ€¦' : 'Publish latest' }}
+            </button>
+          </div>
+        </div>
+        <div class="empty" *ngIf="!loading && !queries.length">
+          <mat-icon>search_off</mat-icon>
+          <p>No Named Queries yet. Create your first draft on the right.</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>New query draft</mat-card-title>
+        <mat-card-subtitle>Drafts are immutable revisions; publishing makes the latest revision live.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="form" (ngSubmit)="create()" class="details-section">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <mat-label>Source service</mat-label>
+            <mat-select formControlName="service_id">
+              <mat-option *ngFor="let service of services; trackBy: trackByServiceId" [value]="service.id">{{ service.label || service.name }} ({{ service.type }})</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.controls.service_id.hasError('required')">Service is required.</mat-error>
+            <mat-hint *ngIf="!services.length">No compatible services found. Create a pgsql_query / oracle / sqlsrv / informix service first.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="dynamic-width">
+            <mat-label>Name</mat-label>
+            <input matInput formControlName="name" placeholder="acasala" />
+            <mat-error *ngIf="form.controls.name.hasError('required')">Name is required.</mat-error>
+            <mat-error *ngIf="form.controls.name.hasError('pattern')">Start with a letter; letters, numbers, _ or - only.</mat-error>
+            <mat-hint>Letters, numbers, underscore or hyphen.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <mat-label>Description</mat-label>
+            <input matInput formControlName="description" placeholder="Returns assembly data by CMA" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <mat-label>Read-only SQL</mat-label>
+            <textarea matInput rows="7" formControlName="sql" class="mono" placeholder="SELECT ... WHERE stamp_key = :cma"></textarea>
+            <mat-error *ngIf="form.controls.sql.hasError('required')">SQL is required.</mat-error>
+            <mat-hint>Must start with SELECT/WITH, no DDL/DML, no FOR UPDATE, no semicolon. Use :param placeholders.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <mat-label>Parameters JSON</mat-label>
+            <textarea matInput rows="3" formControlName="parameters" class="mono" placeholder='Enter JSON array e.g. name, type, required'></textarea>
+            <mat-hint>Array of name, type, required, default. Types: string, integer, number, boolean.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <mat-label>Output schema JSON</mat-label>
+            <textarea matInput rows="3" formControlName="output_schema" class="mono" placeholder='Enter JSON array of output fields'></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+            <mat-label>Budgets JSON</mat-label>
+            <textarea matInput rows="2" formControlName="budgets" class="mono" placeholder='Enter JSON e.g. max_rows'></textarea>
+          </mat-form-field>
+
+          <div class="full-width action-bar">
+            <button mat-flat-button color="primary" class="save-btn" type="submit" [disabled]="saving"><span *ngIf="!saving">Create draft</span><span *ngIf="saving">Creating...</span></button>
+            <button mat-button type="button" class="cancel-btn" (click)="clearForm()">Clear</button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

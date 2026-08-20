@@ -28,6 +28,34 @@
   "prefer-stable": true,
   "repositories": [
     {
+      "type": "path",
+      "url": "extensions/df-oracle",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
+      "type": "path",
+      "url": "extensions/df-sqlsrv",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
+      "type": "path",
+      "url": "extensions/df-informix",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
+      "type": "path",
+      "url": "extensions/df-named-query",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
       "type": "vcs",
       "url": "https://github.com/dreamfactorysoftware/df-admin-interface"
     },
@@ -102,7 +130,11 @@
     "laravel/helpers": "^1.8",
     "laravel/tinker": "^3.0",
     "predis/predis": "~1.0",
-    "symfony/css-selector": "^7.4"
+    "symfony/css-selector": "^7.4",
+    "yamaha/df-informix": "^0.1",
+    "yamaha/df-named-query": "^0.1",
+    "yamaha/df-oracle": "^0.1",
+    "yamaha/df-sqlsrv": "^0.1"
   },
   "conflict": {
     "symfony/cache": ">=8.0",

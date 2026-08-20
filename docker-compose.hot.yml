@@ -1,0 +1,24 @@
+services:
+  dreamfactory:
+    image: yamaha/dreamfactory-query:0.1.3-ui
+    container_name: dreamfactory-hot
+    ports:
+      - "18082:80"
+    env_file:
+      - ../deployment-artifacts/dreamfactory.env.example
+    volumes:
+      - dreamfactory-storage:/opt/dreamfactory/storage
+      - ./extensions:/opt/dreamfactory/extensions:ro
+      - ./dreamfabric-admin/dist:/opt/dreamfactory/public/dreamfactory/dist
+    restart: unless-stopped
+  frontend-watch:
+    image: node:20
+    working_dir: /workspace
+    volumes:
+      - ./dreamfabric-admin:/workspace
+    command: sh -c "npm ci --ignore-scripts && npm run watch"
+    ports:
+      - "4200:4200"
+
+volumes:
+  dreamfactory-storage:

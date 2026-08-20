@@ -1,0 +1,23 @@
+{
+  "name": "yamaha/df-informix",
+  "description": "Independent Informix database service for DreamFactory.",
+  "license": "Apache-2.0",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "dreamfactory/df-sqldb": "~1.5.0",
+    "yamaha/df-named-query": "^0.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Yamaha\\DreamFactory\\Informix\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Yamaha\\DreamFactory\\Informix\\ServiceProvider"
+      ]
+    }
+  }
+}
