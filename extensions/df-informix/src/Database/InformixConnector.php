@@ -19,13 +19,13 @@ class InformixConnector
             }
         }
 
-        $port = isset($config['port']) ? ';service=' . (int) $config['port'] : '';
+        $port = isset($config['port']) ? ';SERVICE=' . (int) $config['port'] : '';
         $dsn = sprintf(
-            'informix:host=%s%s;database=%s;server=%s;protocol=onsoctcp',
+            'informix:DRIVER={Informix};SERVER=%s;HOST=%s%s;PROTOCOL=onsoctcp;DATABASE=%s',
+            $config['server'],
             $config['host'],
             $port,
-            $config['database'],
-            $config['server']
+            $config['database']
         );
         $options = $config['options'] ?? [];
         $pdo = new \PDO($dsn, $config['username'] ?? null, $config['password'] ?? null, $options);

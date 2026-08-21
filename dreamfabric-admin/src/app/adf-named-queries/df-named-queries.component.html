@@ -20,12 +20,29 @@
     <mat-card class="catalog" appearance="outlined">
       <mat-card-header>
         <mat-card-title>Catalog</mat-card-title>
-        <mat-card-subtitle>{{ queries.length }} {{ queries.length === 1 ? 'query' : 'queries' }}</mat-card-subtitle>
+        <mat-card-subtitle>{{ filteredQueries.length }} of {{ queries.length }} {{ queries.length === 1 ? 'query' : 'queries' }}</mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
+        <div class="catalog-toolbar">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="toolbar-search">
+            <mat-label>Search</mat-label>
+            <input matInput [value]="searchText" (input)="searchText = $any($event.target).value" placeholder="Name or description" />
+            <mat-icon matPrefix>search</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="toolbar-service">
+            <mat-label>Service</mat-label>
+            <mat-select [value]="serviceFilter" (selectionChange)="serviceFilter = $event.value">
+              <mat-option value="all">All services</mat-option>
+              <mat-option *ngFor="let service of services; trackBy: trackById" [value]="service.id">
+                {{ service.label }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
         <div
           class="query-row"
-          *ngFor="let query of queries; trackBy: trackById"
+          *ngFor="let query of filteredQueries; trackBy: trackById"
           [class.query-row-selected]="selectedQuery?.id === query.id">
           <button
             type="button"
@@ -34,14 +51,22 @@
             [attr.aria-label]="'Open Named Query ' + query.name">
             <strong class="query-name">{{ query.name }}</strong>
             <span class="query-desc">{{ query.description || 'No description' }}</span>
-            <span class="query-service">{{ serviceNameFor(query.serviceId) }} | v{{ query.lockVersion }}</span>
+            <span class="query-service">{{ serviceNameFor(query.serviceId) }}</span>
           </button>
           <div class="query-actions">
-            <span class="badge" [class.badge-published]="query.isActive" [class.badge-draft]="!query.isActive">
-              {{ query.isActive ? 'Published' : 'Draft' }}
+            <span
+              class="badge"
+              [class.badge-published]="statusFor(query).cls === 'badge-published'"
+              [class.badge-draft]="statusFor(query).cls === 'badge-draft'"
+              [class.badge-pending]="statusFor(query).cls === 'badge-pending'"
+              [matTooltip]="statusFor(query).hint || ''">
+              {{ statusFor(query).label }}
             </span>
           </div>
         </div>
+        <p class="muted catalog-empty" *ngIf="!loading && queries.length && !filteredQueries.length">
+          No queries match the current search/filter.
+        </p>
         <div class="empty" *ngIf="!loading && !queries.length">
           <mat-icon>search_off</mat-icon>
           <p>No Named Queries yet. Create the first draft to establish a governed endpoint.</p>
@@ -58,12 +83,19 @@
         <mat-card-content>
           <p class="details-description">{{ query.description || 'No description' }}</p>
 
+          <div class="param-chips" *ngIf="publishedRevision as published">
+            <span class="param-chip" *ngFor="let parameter of published.parameters">
+              {{ parameter.name }}<span class="param-chip-type">: {{ parameter.type || 'string' }}</span><span class="param-chip-req" *ngIf="parameter.required"> *</span>
+            </span>
+            <span class="muted" *ngIf="!published.parameters.length">No parameters</span>
+          </div>
+
           <div class="revision-controls" *ngIf="query.revisions.length; else noRevisions">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>Revision to review</mat-label>
               <mat-select [value]="selectedRevision?.id" (selectionChange)="selectRevision($event.value)">
                 <mat-option *ngFor="let revision of query.revisions; trackBy: trackById" [value]="revision.id">
-                  Revision {{ revision.revision }}{{ revision.id === query.publishedRevisionId ? ' (published)' : '' }}
+                  Revision {{ revision.revision }}{{ revision.id === query.publishedRevisionId ? ' (published)' : ' (draft)' }}
                 </mat-option>
               </mat-select>
             </mat-form-field>
@@ -133,24 +165,59 @@
               <mat-hint>Starts with SELECT or WITH. DDL, DML, FOR UPDATE, and semicolons are rejected. Use :parameter placeholders.</mat-hint>
             </mat-form-field>
 
-            <div class="form-grid">
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Parameters JSON</mat-label>
-                <textarea matInput rows="6" formControlName="parameters" class="mono" placeholder='[{ "name": "cma", "type": "string", "required": true }]'></textarea>
-                <mat-hint>Array. Types: string, integer, number, boolean.</mat-hint>
-              </mat-form-field>
+            <div class="param-editor" formArrayName="parameterRows">
+              <div class="param-editor-head">
+                <span class="param-editor-label">Parameters</span>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="detectParametersFromSql()"
+                  [disabled]="definitionForm.controls.sql.invalid"
+                  matTooltip="Scan the SQL above for :placeholders and add missing parameters">
+                  <mat-icon>auto_fix_high</mat-icon>
+                  Detect from SQL
+                </button>
+                <button mat-icon-button type="button" (click)="addParameterRow()" aria-label="Add parameter" matTooltip="Add parameter">
+                  <mat-icon>add</mat-icon>
+                </button>
+              </div>
 
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Output schema JSON</mat-label>
-                <textarea matInput rows="6" formControlName="outputSchema" class="mono" placeholder='[{ "name": "vin" }]'></textarea>
-                <mat-hint>Array of the fields exposed by this endpoint.</mat-hint>
-              </mat-form-field>
+              <div class="param-row" *ngFor="let row of parameterRows.controls; let i = index" [formGroupName]="i">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="param-name">
+                  <mat-label>Name</mat-label>
+                  <input matInput formControlName="name" placeholder="cma" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="param-type">
+                  <mat-label>Type</mat-label>
+                  <mat-select formControlName="type">
+                    <mat-option *ngFor="let type of parameterTypes" [value]="type">{{ type }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-checkbox formControlName="required" class="param-required">Required</mat-checkbox>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="param-default">
+                  <mat-label>Default</mat-label>
+                  <input matInput formControlName="defaultValue" placeholder="optional" />
+                </mat-form-field>
+                <button mat-icon-button type="button" (click)="removeParameterRow(i)" aria-label="Remove parameter" class="param-remove">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </div>
+
+              <p class="muted param-empty" *ngIf="!parameterRows.length">
+                No parameters declared. Write :placeholders in the SQL and click "Detect from SQL", or add a row manually.
+              </p>
             </div>
 
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width budget-field">
-              <mat-label>Budgets JSON</mat-label>
-              <textarea matInput rows="3" formControlName="budgets" class="mono" placeholder='{ "maxRows": 100 }'></textarea>
-              <mat-hint>Object. maxRows caps returned rows and is still bounded by the service limit.</mat-hint>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+              <mat-label>Output schema JSON (optional)</mat-label>
+              <textarea matInput rows="4" formControlName="outputSchema" class="mono" placeholder='[{ "name": "vin" }]'></textarea>
+              <mat-hint>Advanced: array of the fields exposed by this endpoint.</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="budget-field">
+              <mat-label>Row limit (maxRows)</mat-label>
+              <input matInput type="number" formControlName="budgetsMaxRows" placeholder="No limit beyond the service cap" />
+              <mat-hint>Caps returned rows; still bounded by the service limit.</mat-hint>
             </mat-form-field>
 
             <div class="action-bar">
@@ -173,13 +240,32 @@
             <ng-template #unpublishedHint>Publish a revision before it can be executed.</ng-template>
           </mat-card-subtitle>
         </mat-card-header>
-        <mat-card-content *ngIf="publishedRevision; else unpublishedState">
-          <form [formGroup]="runForm" (ngSubmit)="runPublishedQuery()" class="run-form">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
-              <mat-label>Execution parameters JSON</mat-label>
-              <textarea matInput rows="5" formControlName="parameters" class="mono" placeholder='{ "cma": "..." }'></textarea>
-              <mat-hint>Only the published revision runs. Required parameters must have values.</mat-hint>
-            </mat-form-field>
+        <mat-card-content *ngIf="publishedRevision as published; else unpublishedState">
+          <div class="endpoint-line">
+            <code class="endpoint-url">{{ fullEndpointUrl() }}</code>
+            <button mat-icon-button type="button" (click)="copyEndpointUrl()" [matTooltip]="copiedUrl ? 'Copied!' : 'Copy URL'" [attr.aria-label]="'Copy endpoint URL'">
+              <mat-icon>{{ copiedUrl ? 'check' : 'content_copy' }}</mat-icon>
+            </button>
+          </div>
+
+          <form [formGroup]="runParamsForm" (ngSubmit)="runPublishedQuery()" class="run-form">
+            <div class="run-grid" *ngIf="published.parameters.length; else noRunParams">
+              <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                *ngFor="let parameter of published.parameters; trackBy: trackByParameterName">
+                <mat-label>{{ parameter.name }}{{ parameter.required ? ' *' : '' }}</mat-label>
+                <input
+                  matInput
+                  [type]="runParamType(parameter)"
+                  [formControlName]="parameter.name"
+                  [placeholder]="hasDefault(parameter) ? 'default: ' + parameter.default : parameter.required ? 'required' : 'optional'" />
+                <mat-hint *ngIf="!parameter.required && !hasDefault(parameter)">Optional</mat-hint>
+              </mat-form-field>
+            </div>
+            <ng-template #noRunParams>
+              <p class="muted">This query takes no parameters.</p>
+            </ng-template>
             <div class="action-bar">
               <button mat-flat-button color="primary" type="submit" [disabled]="running">
                 {{ running ? 'Running...' : 'Run published query' }}

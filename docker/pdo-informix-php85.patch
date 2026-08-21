@@ -1,0 +1,20 @@
+--- a/informix_driver.c
++++ b/informix_driver.c
+@@ -91,1 +91,1 @@
+-        rc = pdo_parse_params(stmt, (char *) stmt_string,
++        rc = pdo_parse_params(stmt, stmt_string,
+@@ -156,1 +156,5 @@
+-		efree(stmt_res->converted_statement);
++#if PHP_8_1_OR_HIGHER
++		zend_string_release(stmt_res->converted_statement);
++#else
++		efree(stmt_res->converted_statement);
++#endif
+--- a/informix_statement.c
++++ b/informix_statement.c
+@@ -219,0 +220,5 @@
++
++			/* Informix reports untyped expressions such as `? IS NULL` as unknown. */
++			if (param_res->data_type == SQL_UNKNOWN_TYPE) {
++				param_res->data_type = SQL_VARCHAR;
++			}

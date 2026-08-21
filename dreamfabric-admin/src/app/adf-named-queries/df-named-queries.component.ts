@@ -1,14 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormArray,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { forkJoin } from 'rxjs';
 
 import { DfPageHeaderComponent } from '../shared/components/df-page-header/df-page-header.component';
@@ -62,6 +71,15 @@ type DefinitionPayload = {
   budgets: JsonObject;
 };
 
+type QueryStatus = {
+  label: string;
+  cls: string;
+  hint?: string;
+};
+
+const PARAMETER_TYPES = ['string', 'integer', 'number', 'boolean'];
+const PARAMETER_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 @Component({
   selector: 'df-named-queries',
   standalone: true,
@@ -70,11 +88,13 @@ type DefinitionPayload = {
     ReactiveFormsModule,
     MatButtonModule,
     MatCardModule,
+    MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatProgressBarModule,
     MatSelectModule,
+    MatTooltipModule,
     DfPageHeaderComponent,
   ],
   templateUrl: './df-named-queries.component.html',
@@ -96,19 +116,27 @@ export class DfNamedQueriesComponent implements OnInit {
   running = false;
   runFinished = false;
 
+  // Catalog toolbar (item D).
+  searchText = '';
+  serviceFilter: number | 'all' = 'all';
+
+  // Test panel (item C).
+  copiedUrl = false;
+  private copiedTimer: ReturnType<typeof setTimeout> | null = null;
+
+  parameterTypes = PARAMETER_TYPES;
+
   definitionForm = this.formBuilder.nonNullable.group({
     serviceId: [0, [Validators.required, Validators.min(1)]],
     name: ['', [Validators.required, Validators.pattern(/^[A-Za-z][A-Za-z0-9_-]{0,127}$/)]],
     description: [''],
     sql: ['', Validators.required],
-    parameters: ['[]', Validators.required],
-    outputSchema: ['[]', Validators.required],
-    budgets: ['{}', Validators.required],
+    outputSchema: ['[]'],
+    budgetsMaxRows: this.formBuilder.control<number | null>(null),
+    parameterRows: this.formBuilder.array<FormGroup>([]),
   });
 
-  runForm = this.formBuilder.nonNullable.group({
-    parameters: ['{}', Validators.required],
-  });
+  runParamsForm = this.formBuilder.nonNullable.group({});
 
   constructor(private http: HttpClient, private formBuilder: FormBuilder) {}
 
@@ -118,6 +146,10 @@ export class DfNamedQueriesComponent implements OnInit {
 
   get isNewDefinition(): boolean {
     return this.selectedQuery === null;
+  }
+
+  get parameterRows(): FormArray<FormGroup> {
+    return this.definitionForm.controls.parameterRows;
   }
 
   get publishedRevision(): NamedQueryRevision | null {
@@ -130,6 +162,25 @@ export class DfNamedQueriesComponent implements OnInit {
         revision => revision.id === this.selectedQuery?.publishedRevisionId
       ) ?? null
     );
+  }
+
+  get filteredQueries(): NamedQuery[] {
+    const needle = this.searchText.trim().toLowerCase();
+    return this.queries.filter(query => {
+      if (
+        this.serviceFilter !== 'all' &&
+        query.serviceId !== this.serviceFilter
+      ) {
+        return false;
+      }
+      if (!needle) {
+        return true;
+      }
+      return (
+        query.name.toLowerCase().includes(needle) ||
+        query.description.toLowerCase().includes(needle)
+      );
+    });
   }
 
   refresh(selectedId: number | null = this.selectedQuery?.id ?? null): void {
@@ -156,7 +207,7 @@ export class DfNamedQueriesComponent implements OnInit {
         this.loading = false;
 
         const query =
-          this.queries.find(item => item.id === selectedId) ?? this.queries[0];
+          this.queries.find(item => item.id === selectedId) ?? this.filteredQueries[0] ?? this.queries[0];
         if (query) {
           this.selectQuery(query);
         } else {
@@ -206,13 +257,12 @@ export class DfNamedQueriesComponent implements OnInit {
       name: '',
       description: '',
       sql: '',
-      parameters: '[]',
       outputSchema: '[]',
-      budgets: '{}',
+      budgetsMaxRows: null,
     });
+    this.parameterRows.clear();
     this.definitionForm.markAsPristine();
-    this.runForm.reset({ parameters: '{}' });
-    this.runForm.markAsPristine();
+    this.runParamsForm = this.formBuilder.nonNullable.group({});
   }
 
   selectRevision(revisionId: number): void {
@@ -230,16 +280,182 @@ export class DfNamedQueriesComponent implements OnInit {
     this.resultColumns = [];
   }
 
+  // ---- Parameter rows editor (item A) -------------------------------------
+
+  addParameterRow(parameter?: Partial<NamedQueryParameter>): void {
+    const row = this.formBuilder.nonNullable.group({
+      name: [
+        parameter?.name ?? '',
+        [
+          Validators.required,
+          Validators.pattern(PARAMETER_NAME_PATTERN),
+        ],
+      ],
+      type: [parameter?.type ?? 'string', Validators.required],
+      required: [parameter?.required ?? true],
+      defaultValue: [
+        parameter?.default === null || parameter?.default === undefined
+          ? ''
+          : String(parameter.default),
+      ],
+    });
+    this.parameterRows.push(row);
+  }
+
+  removeParameterRow(index: number): void {
+    this.parameterRows.removeAt(index);
+  }
+
+  detectParametersFromSql(): void {
+    const sql = this.definitionForm.controls.sql.value;
+    const found = new Set<string>();
+    const pattern = /(?<![\w]):([A-Za-z_][A-Za-z0-9_]*)/g;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(sql)) !== null) {
+      found.add(match[1]);
+    }
+
+    const existing = new Set(
+      this.parameterRows.controls.map(
+        row => row.controls['name'].value.trim().toLowerCase()
+      )
+    );
+
+    let added = 0;
+    for (const name of found) {
+      if (!existing.has(name.toLowerCase())) {
+        this.addParameterRow({ name, type: 'string', required: true });
+        added += 1;
+      }
+    }
+
+    if (!added && found.size) {
+      // All detected parameters already exist — nothing to do.
+    }
+  }
+
+  private syncParameterRows(revision: NamedQueryRevision | null): void {
+    this.parameterRows.clear();
+    for (const parameter of revision?.parameters ?? []) {
+      this.addParameterRow(parameter);
+    }
+  }
+
+  private buildParametersPayload(): NamedQueryParameter[] | null {
+    const rows = this.parameterRows.controls;
+    const seen = new Set<string>();
+    const parameters: NamedQueryParameter[] = [];
+
+    for (const row of rows) {
+      const name = row.controls['name'].value.trim();
+      if (!name) {
+        this.error = 'Every parameter needs a name (or remove the empty row).';
+        return null;
+      }
+      if (!PARAMETER_NAME_PATTERN.test(name)) {
+        this.error = `Invalid parameter name "${name}". Use letters, numbers and underscores, starting with a letter or underscore.`;
+        return null;
+      }
+      const key = name.toLowerCase();
+      if (seen.has(key)) {
+        this.error = `Duplicate parameter name "${name}".`;
+        return null;
+      }
+      seen.add(key);
+
+      const rawDefault = row.controls['defaultValue'].value;
+      const parameter: NamedQueryParameter = {
+        name,
+        type: row.controls['type'].value,
+        required: row.controls['required'].value,
+      };
+      if (rawDefault !== '') {
+        parameter.default = this.coerceDefault(rawDefault, row.controls['type'].value);
+      }
+      parameters.push(parameter);
+    }
+
+    return parameters;
+  }
+
+  private coerceDefault(raw: string, type: string): unknown {
+    if (type === 'integer') {
+      const parsed = Number.parseInt(raw, 10);
+      return Number.isNaN(parsed) ? raw : parsed;
+    }
+    if (type === 'number') {
+      const parsed = Number(raw);
+      return Number.isNaN(parsed) ? raw : parsed;
+    }
+    if (type === 'boolean') {
+      return raw === 'true' || raw === '1';
+    }
+    return raw;
+  }
+
+  // ---- Status badges (item B) ---------------------------------------------
+
+  statusFor(query: NamedQuery): QueryStatus {
+    if (!query.isActive || !query.publishedRevisionId) {
+      return { label: 'Draft', cls: 'badge-draft' };
+    }
+
+    const latest = query.revisions.reduce<NamedQueryRevision | null>(
+      (acc, revision) =>
+        !acc || revision.revision > acc.revision ? revision : acc,
+      null
+    );
+    if (latest && latest.id !== query.publishedRevisionId) {
+      return {
+        label: 'Pending publish',
+        cls: 'badge-pending',
+        hint: `Revision ${latest.revision} is saved but not published yet.`,
+      };
+    }
+
+    return { label: 'Published', cls: 'badge-published' };
+  }
+
+  // ---- Save / publish / delete --------------------------------------------
+
   saveDefinition(): void {
     if (this.definitionForm.invalid) {
       this.definitionForm.markAllAsTouched();
       return;
     }
 
-    const definition = this.definitionPayload();
-    if (!definition) {
+    const parameters = this.buildParametersPayload();
+    if (parameters === null) {
       return;
     }
+
+    const value = this.definitionForm.getRawValue();
+    let outputSchema: unknown[];
+    try {
+      const parsed: unknown = JSON.parse(value.outputSchema || '[]');
+      if (!Array.isArray(parsed)) {
+        throw new Error('Output schema must be a JSON array.');
+      }
+      outputSchema = parsed;
+    } catch {
+      this.error = 'Output schema must contain a valid JSON array.';
+      return;
+    }
+
+    const budgets: JsonObject = {};
+    if (value.budgetsMaxRows !== null && value.budgetsMaxRows !== undefined) {
+      budgets['maxRows'] = value.budgetsMaxRows;
+    }
+
+    const definition: DefinitionPayload = {
+      serviceId: Number(value.serviceId),
+      name: value.name.trim(),
+      description: value.description.trim() || null,
+      sql: value.sql,
+      parameters,
+      outputSchema,
+      budgets,
+    };
 
     this.saving = true;
     this.error = '';
@@ -335,24 +551,88 @@ export class DfNamedQueriesComponent implements OnInit {
     });
   }
 
+  // ---- Test panel (item C) --------------------------------------------------
+
+  fullEndpointUrl(): string {
+    if (!this.selectedQuery) {
+      return '';
+    }
+    return `${location.origin}/api/v2/${this.serviceEndpointFor(
+      this.selectedQuery.serviceId
+    )}/_query/${this.selectedQuery.name}`;
+  }
+
+  copyEndpointUrl(): void {
+    const url = this.fullEndpointUrl();
+    if (!url) {
+      return;
+    }
+    navigator.clipboard.writeText(url).then(() => {
+      this.copiedUrl = true;
+      if (this.copiedTimer) {
+        clearTimeout(this.copiedTimer);
+      }
+      this.copiedTimer = setTimeout(() => (this.copiedUrl = false), 1600);
+    });
+  }
+
+  runParamType(parameter: NamedQueryParameter): string {
+    return parameter.type === 'integer' || parameter.type === 'number'
+      ? 'number'
+      : 'text';
+  }
+
+  hasDefault(parameter: NamedQueryParameter): boolean {
+    return (
+      Object.prototype.hasOwnProperty.call(parameter, 'default') &&
+      parameter.default !== null &&
+      parameter.default !== undefined &&
+      parameter.default !== ''
+    );
+  }
+
   runPublishedQuery(): void {
     if (!this.selectedQuery || !this.publishedRevision) {
       return;
     }
 
-    let parameters: JsonObject;
-    try {
-      const parsed: unknown = JSON.parse(this.runForm.controls.parameters.value);
-      if (!this.isJsonObject(parsed)) {
-        throw new Error('Execution parameters must be a JSON object.');
+    const parameters: JsonObject = {};
+    for (const declaration of this.publishedRevision.parameters) {
+      const control = this.runParamsForm.get(declaration.name);
+      const raw = control?.value;
+      const isEmpty =
+        raw === null ||
+        raw === undefined ||
+        (typeof raw === 'string' && raw.trim() === '');
+
+      if (isEmpty) {
+        if (declaration.required) {
+          this.error = `Parameter "${declaration.name}" is required.`;
+          return;
+        }
+        continue;
       }
-      parameters = parsed;
-    } catch (error: unknown) {
-      this.error =
-        error instanceof Error && error.message === 'Execution parameters must be a JSON object.'
-          ? error.message
-          : 'Execution parameters must contain valid JSON.';
-      return;
+
+      if (declaration.type === 'integer') {
+        const parsed = Number.parseInt(String(raw), 10);
+        if (Number.isNaN(parsed)) {
+          this.error = `Parameter "${declaration.name}" must be an integer.`;
+          return;
+        }
+        parameters[declaration.name] = parsed;
+      } else if (declaration.type === 'number') {
+        const parsed = Number(raw);
+        if (Number.isNaN(parsed)) {
+          this.error = `Parameter "${declaration.name}" must be numeric.`;
+          return;
+        }
+        parameters[declaration.name] = parsed;
+      } else if (declaration.type === 'boolean') {
+        parameters[declaration.name] =
+          raw === true || raw === 'true' || raw === '1';
+      } else {
+        parameters[declaration.name] = String(raw);
+      }
     }
 
     const service = this.services.find(
@@ -426,19 +706,24 @@ export class DfNamedQueriesComponent implements OnInit {
 
   trackById = (_: number, item: { id: number }): number => item.id;
 
+  trackByParameterName = (_: number, item: NamedQueryParameter): string => item.name;
+
   private populateDefinitionForm(): void {
     if (!this.selectedQuery || !this.selectedRevision) {
       return;
     }
+
+    this.syncParameterRows(this.selectedRevision);
+    const maxRows = this.selectedRevision.budgets['maxRows'];
 
     this.definitionForm.reset({
       serviceId: this.selectedQuery.serviceId,
       name: this.selectedQuery.name,
       description: this.selectedQuery.description,
       sql: this.selectedRevision.sql,
-      parameters: this.jsonText(this.selectedRevision.parameters),
       outputSchema: this.jsonText(this.selectedRevision.outputSchema),
-      budgets: this.jsonText(this.selectedRevision.budgets),
+      budgetsMaxRows:
+        typeof maxRows === 'number' ? maxRows : null,
     });
     this.definitionForm.controls.serviceId.disable({ emitEvent: false });
     this.definitionForm.controls.name.disable({ emitEvent: false });
@@ -446,48 +731,19 @@ export class DfNamedQueriesComponent implements OnInit {
   }
 
   private populateRunParameters(): void {
-    const parameters: JsonObject = {};
+    const controls: Record<string, FormControl> = {};
     for (const declaration of this.publishedRevision?.parameters ?? []) {
-      if (Object.prototype.hasOwnProperty.call(declaration, 'default')) {
-        parameters[declaration.name] = declaration.default;
-      } else if (declaration.required) {
-        parameters[declaration.name] = '';
-      }
+      const initial = this.hasDefault(declaration)
+        ? declaration.default
+        : declaration.required
+          ? ''
+          : null;
+      controls[declaration.name] = this.formBuilder.nonNullable.control(
+        initial as string | number | boolean,
+      );
     }
 
-    this.runForm.reset({ parameters: this.jsonText(parameters) });
-    this.runForm.markAsPristine();
-  }
-
-  private definitionPayload(): DefinitionPayload | null {
-    const value = this.definitionForm.getRawValue();
-    try {
-      const parameters: unknown = JSON.parse(value.parameters);
-      const outputSchema: unknown = JSON.parse(value.outputSchema);
-      const budgets: unknown = JSON.parse(value.budgets);
-      if (!Array.isArray(parameters)) {
-        throw new Error('Parameters must be a JSON array.');
-      }
-      if (!Array.isArray(outputSchema)) {
-        throw new Error('Output schema must be a JSON array.');
-      }
-      if (!this.isJsonObject(budgets)) {
-        throw new Error('Budgets must be a JSON object.');
-      }
-
-      return {
-        serviceId: Number(value.serviceId),
-        name: value.name.trim(),
-        description: value.description.trim() || null,
-        sql: value.sql,
-        parameters: parameters as NamedQueryParameter[],
-        outputSchema,
-        budgets,
-      };
-    } catch (error: unknown) {
-      this.error = error instanceof Error ? error.message : 'Definition fields must contain valid JSON.';
-      return null;
-    }
+    this.runParamsForm = this.formBuilder.nonNullable.group(controls);
   }
 
   private toQuery(value: unknown): NamedQuery {

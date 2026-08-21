@@ -1,6 +1,6 @@
 services:
   dreamfactory:
-    image: yamaha/dreamfactory-query:0.1.7-hot
+    image: yamaha/dreamfactory-query:0.1.12-hot
     container_name: dreamfactory-hot
     ports:
       - "18082:80"
@@ -17,6 +17,11 @@ services:
       - MCP_INTERNAL_BASE_URL=http://127.0.0.1
       # JWT de 30 dias para suportar token MCP estatico (sem login no browser).
       - DF_JWT_TTL=43200
+      # Daemon MCP sem estado: cada request carrega config/token via PHP proxy.
+      # Sessoes nao ficam presas ao processo -> restarts nao derrubam clientes.
+      - MCP_STATELESS=true
+      # Timeout das chamadas do daemon para a API do DF (get_data_model e lento).
+      - MCP_REQUEST_TIMEOUT_MS=180000
     volumes:
       - dreamfactory-storage:/opt/dreamfactory/storage
       - ./extensions:/opt/dreamfactory/extensions:ro
@@ -32,6 +37,8 @@ services:
       - ./docker/nginx-dreamfactory.conf:/etc/nginx/sites-available/dreamfactory.conf:ro
       # Start the MCP daemon on boot.
       - ./docker/dreamfactory-entrypoint:/usr/local/bin/dreamfactory-entrypoint:ro
+      # Instrucoes do servidor MCP com convencoes de nomes e workflow de Named Queries.
+      - ./docker/mcp-daemon-utils.js:/opt/dreamfactory/vendor/dreamfactory/df-mcp-server/daemon/dist/utils/utils.js:ro
     restart: unless-stopped
   frontend-watch:
     image: node:20

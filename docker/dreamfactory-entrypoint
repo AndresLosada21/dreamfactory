@@ -66,6 +66,17 @@ chown www-data:www-data "$key_file" .env
 chmod 600 "$key_file"
 chmod 640 .env
 
+# PHP-FPM tuning: each MCP request uses TWO workers (PHP proxy -> daemon ->
+# internal DF API call). The image default (ondemand, max_children=4) collapses
+# under parallel MCP traffic; 20 supports ~10 concurrent MCP calls.
+fpm_pool=/etc/php/8.5/fpm/pool.d/www.conf
+if [ -f "$fpm_pool" ]; then
+  sed -i 's/^pm.max_children = .*/pm.max_children = 20/' "$fpm_pool" || true
+  sed -i 's/^pm.start_servers = .*/pm.start_servers = 6/' "$fpm_pool" || true
+  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = 4/' "$fpm_pool" || true
+  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = 12/' "$fpm_pool" || true
+fi
+
 # Bootstrap the cache tables before migrations so a fresh SQLite volume starts cleanly.
 php -r '$db = "/opt/dreamfactory/storage/databases/database.sqlite"; $pdo = new PDO("sqlite:" . $db); $pdo->exec("CREATE TABLE IF NOT EXISTS cache (key VARCHAR(255) PRIMARY KEY, value TEXT NOT NULL, expiration INTEGER NOT NULL)"); $pdo->exec("CREATE TABLE IF NOT EXISTS cache_locks (key VARCHAR(255) PRIMARY KEY, owner VARCHAR(255) NOT NULL, expiration INTEGER NOT NULL)");'
 php artisan migrate --force --no-interaction
@@ -82,6 +93,10 @@ if [ -f "$daemon_dir/dist/server.js" ]; then
   if [ ! -d "$daemon_dir/node_modules" ]; then
     (cd "$daemon_dir" && npm install --omit=dev --no-audit --no-fund) || true
   fi
+  # Make the daemon request timeout tunable without rebuilding the image
+  # (default 30s aborts slow tools like *_get_data_model on busy databases).
+  sed -i 's/const REQUEST_TIMEOUT_MS = 30_000;/const REQUEST_TIMEOUT_MS = Number(process.env.MCP_REQUEST_TIMEOUT_MS ?? 30000);/' \
+    "$daemon_dir"/dist/services/*.js 2>/dev/null || true
   nohup node "$daemon_dir/dist/server.js" >/var/log/mcp-daemon.log 2>&1 &
 fi
 

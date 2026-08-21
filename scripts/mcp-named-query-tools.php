@@ -15,7 +15,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use DreamFactory\Core\McpServer\Models\McpCustomTool;
 use Illuminate\Support\Facades\DB;
 
-$serviceName = 'vfdf';
+$serviceName = 'yamaha-query';
 $service = DB::table('service')->where('name', $serviceName)->first();
 if (!$service) {
     fwrite(STDERR, "Service '$serviceName' not found.\n");
@@ -37,7 +37,7 @@ $tools = [
     ],
     [
         'name' => 'named_query_run',
-        'description' => 'Execute a published Named Query by name on a database service. SQL is read-only server-side (SELECT/WITH only, no semicolons). Pass query parameters as a JSON object string in params_json, e.g. "{\"inicio\":\"2026-01-01\",\"fim\":\"2026-12-31\"}".',
+        'description' => 'Execute a published Named Query by name on a database service. SQL is read-only server-side (SELECT/WITH only, no semicolons). Pass query parameters as a JSON object string in params_json, e.g. "{\"inicio\":\"2026-01-01\",\"fim\":\"2026-12-31\"}". Errors: 404 = query not published (check with named_query_list_all); 400 names the missing/invalid parameter.',
         'http_method' => 'POST',
         'url' => $base . '/{service}/_query/{name}',
         'parameters' => [
@@ -73,17 +73,17 @@ $tools = [
     ],
     [
         'name' => 'named_query_revise',
-        'description' => 'Create a new revision of a Named Query (new draft SQL/parameters). definition_json is a JSON object string: {"lock_version":N,"service_id":X,"sql":"...","parameters":[...]}. Get the current lock_version from named_query_list_all or named_query_get. Does not change what is published until named_query_publish runs.',
+        'description' => 'Create a new revision of a Named Query (new draft SQL/parameters). definition_json is a JSON object string: {"lock_version":N,"service_id":X,"name":"...","sql":"...","parameters":[...]}. Get the current lock_version and service_id from named_query_get first. The published version does not change until named_query_publish runs on the new revision id.',
         'http_method' => 'PATCH',
         'url' => $base . '/system/named_query/{id}',
         'parameters' => [
             ['name' => 'id', 'type' => 'integer', 'in' => 'path', 'required' => true, 'description' => 'Named Query id'],
-            ['name' => 'definition_json', 'type' => 'string', 'in' => 'body', 'required' => true, 'description' => 'New revision definition as a JSON object string (must include current lock_version and service_id)'],
+            ['name' => 'definition_json', 'type' => 'string', 'in' => 'body', 'required' => true, 'description' => 'New revision definition as a JSON object string (must include current lock_version, service_id and name)'],
         ],
     ],
     [
         'name' => 'named_query_publish',
-        'description' => 'Publish a revision of a Named Query, making it active/executable. Requires the current lock_version and the revision id to publish.',
+        'description' => 'Publish a revision of a Named Query, making it active/executable. Requires the current lock_version (from named_query_get) and the revision id to publish. On 409 Conflict the lock_version changed: re-read with named_query_get and retry.',
         'http_method' => 'PATCH',
         'url' => $base . '/system/named_query/{id}',
         'parameters' => [
