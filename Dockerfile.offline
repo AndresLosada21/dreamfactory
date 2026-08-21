@@ -1,7 +1,13 @@
 FROM yamaha/dreamfactory-query:0.1.0
 
 COPY docker/dreamfactory-entrypoint /usr/local/bin/dreamfactory-entrypoint
+COPY docker/nginx-dreamfactory.conf /etc/nginx/sites-available/dreamfactory.conf
+COPY scripts/mcp-named-query-tools.php /opt/dreamfactory/scripts/mcp-named-query-tools.php
 COPY dreamfabric-admin/dist /opt/dreamfactory/public/dreamfactory/dist
+COPY extensions/df-oracle /opt/dreamfactory/vendor/yamaha/df-oracle
+COPY extensions/df-sqlsrv /opt/dreamfactory/vendor/yamaha/df-sqlsrv
+COPY extensions/df-informix /opt/dreamfactory/vendor/yamaha/df-informix
+COPY extensions/df-named-query /opt/dreamfactory/vendor/yamaha/df-named-query
 RUN sed -i "s/min:16/min:8/g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Models/User.php && sed -i "s/min:16/min:8/g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Components/Registrar.php && sed -i "s/at least 16 characters/at least 8 characters/g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Commands/Setup.php && sed -i "s/strlen((string) \$password) < 16/strlen((string) \$password) < 8/" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Commands/Setup.php
 RUN chmod 755 /usr/local/bin/dreamfactory-entrypoint
 

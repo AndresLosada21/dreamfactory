@@ -6,9 +6,9 @@ use DreamFactory\Core\Components\DbSchemaExtensions;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
 use DreamFactory\Core\Services\ServiceManager;
 use DreamFactory\Core\Services\ServiceType;
-use DreamFactory\Core\SqlDb\Database\Schema\SqlSchema;
 use Illuminate\Database\DatabaseManager;
 use Yamaha\DreamFactory\Informix\Database\InformixConnector;
+use Yamaha\DreamFactory\Informix\Database\Schema\InformixSchema;
 use Yamaha\DreamFactory\Informix\Models\InformixConfig;
 use Yamaha\DreamFactory\Informix\Services\Informix;
 
@@ -18,7 +18,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
     {
         $this->app->resolving('df.db.schema', function (DbSchemaExtensions $schemas) {
             $schemas->extend('informix', function ($connection) {
-                return new SqlSchema($connection);
+                return new InformixSchema($connection);
             });
         });
 

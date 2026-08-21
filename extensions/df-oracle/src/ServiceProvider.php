@@ -6,7 +6,7 @@ use DreamFactory\Core\Components\DbSchemaExtensions;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
 use DreamFactory\Core\Services\ServiceManager;
 use DreamFactory\Core\Services\ServiceType;
-use DreamFactory\Core\SqlDb\Database\Schema\SqlSchema;
+use Yamaha\DreamFactory\Oracle\Database\Schema\OracleSchema;
 use Yamaha\DreamFactory\Oracle\Models\OracleConfig;
 use Yamaha\DreamFactory\Oracle\Services\Oracle;
 
@@ -16,7 +16,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
     {
         $this->app->resolving('df.db.schema', function (DbSchemaExtensions $schemas) {
             $schemas->extend('oracle', function ($connection) {
-                return new SqlSchema($connection);
+                return new OracleSchema($connection);
             });
         });
 

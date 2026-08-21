@@ -1,0 +1,17 @@
+{
+  "service_name": "sgpi_hml",
+  "queries": [
+    {
+      "name": "bom-sgpi",
+      "description": "Returns the SGPI bill of materials hierarchy for an item and its supply areas.",
+      "sql": "SELECT dat_alteracao, nivel, cod_item, aplicacao, a, id_item_raiz, dat_inicio_efetividade, dat_fim_efetividade, num_seq_estrutura, supply_station, deliv_pf_no, stock_location, packing_name, packing_qty, sts_item, dsc_item FROM (SELECT LEVEL AS nivel, (i.cod_item || '-' || i.cod_area_fornecedora || '-' || i.cod_area_usuaria) AS cod_item, b.vlr_aplicacao AS aplicacao, SYS_CONNECT_BY_PATH(b.vlr_aplicacao, '*') AS a, CONNECT_BY_ROOT b.id_item AS id_item_raiz, b.dat_inicio_efetividade, b.dat_fim_efetividade, b.num_seq_estrutura, b.supply_station, b.dat_alteracao, i.deliv_pf_no, i.stock_location, i.packing_name, i.packing_qty, i.sts_item, di.dsc_item FROM (SELECT DISTINCT ei.id_item, ei.id_item_pai, ei.vlr_aplicacao, ei.dat_fim_efetividade, ei.dat_inicio_efetividade, ei.num_seq_estrutura, ei.supply_station, ei.dat_alteracao FROM (SELECT DISTINCT a1.id_item, a1.id_item_pai, a1.vlr_aplicacao, a1.dat_fim_efetividade, a1.dat_inicio_efetividade, a1.num_seq_estrutura, a1.supply_station, a1.dat_alteracao FROM oee.ym_sgpi_tab_estrutura_item a1 INNER JOIN oee.ym_sgpi_tab_item a2 ON a1.id_item = a2.id_item INNER JOIN oee.ym_sgpi_tab_item a3 ON a1.id_item_pai = a3.id_item WHERE a3.sts_item <> 9 AND a2.sts_item <> 9 AND a1.ind_excluido <> 1) ei START WITH ei.id_item IN (SELECT i.id_item FROM oee.ym_sgpi_tab_item i WHERE TRIM(i.cod_item) = TRIM(:p_item) AND TRIM(i.cod_area_fornecedora) = TRIM(:p_area_provider) AND TRIM(i.cod_area_usuaria) = TRIM(:p_area_user)) CONNECT BY PRIOR ei.id_item = ei.id_item_pai) b LEFT JOIN oee.ym_sgpi_tab_item i ON i.id_item = b.id_item LEFT JOIN (SELECT id_item, dsc_item FROM ym_sgpi_tab_descricao_item WHERE sgl_idioma = 'PT-BR') di ON di.id_item = b.id_item START WITH b.id_item IN (SELECT id_item FROM oee.ym_sgpi_tab_item WHERE TRIM(cod_item) = TRIM(:p_item) AND TRIM(cod_area_fornecedora) = TRIM(:p_area_provider) AND TRIM(cod_area_usuaria) = TRIM(:p_area_user)) CONNECT BY PRIOR b.id_item = b.id_item_pai)",
+      "parameters": [
+        {"name": "p_item", "type": "string", "required": true},
+        {"name": "p_area_provider", "type": "string", "required": true},
+        {"name": "p_area_user", "type": "string", "required": true}
+      ],
+      "output_schema": [{"name": "dat_alteracao"}, {"name": "nivel"}, {"name": "cod_item"}, {"name": "aplicacao"}, {"name": "a"}, {"name": "id_item_raiz"}, {"name": "dat_inicio_efetividade"}, {"name": "dat_fim_efetividade"}, {"name": "num_seq_estrutura"}, {"name": "supply_station"}, {"name": "deliv_pf_no"}, {"name": "stock_location"}, {"name": "packing_name"}, {"name": "packing_qty"}, {"name": "sts_item"}, {"name": "dsc_item"}],
+      "budgets": {"max_rows": 10000}
+    }
+  ]
+}

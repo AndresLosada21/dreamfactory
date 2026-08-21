@@ -1,5 +1,5 @@
 {
-  "service_name": "py_ptg_native",
+  "service_name": "py_ptg",
   "queries": [
     {
       "name": "acasala",

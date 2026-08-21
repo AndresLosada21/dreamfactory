@@ -15,10 +15,10 @@ idempotent):
 
 ```sh
 php artisan migrate --force
-php artisan named-query:enable-postgresql py_ptg_native
+php artisan named-query:enable-postgresql py_ptg
 php artisan named-query:import vendor/yamaha/df-named-query/database/definitions/py-ptg.json --publish
 ```
 
 Grant the role used by consumers `GET` and/or `POST` access to the `_query`
-resource on `py_ptg_native`. Database credentials for every source service
+resource on `py_ptg`. Database credentials for every source service
 must remain read-only.

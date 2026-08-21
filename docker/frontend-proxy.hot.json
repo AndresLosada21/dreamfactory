@@ -1,0 +1,7 @@
+{
+  "/api": {
+    "target": "http://dreamfactory",
+    "secure": false,
+    "changeOrigin": true
+  }
+}

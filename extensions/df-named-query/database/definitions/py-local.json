@@ -1,0 +1,13 @@
+{
+  "service_name": "py_local",
+  "queries": [
+    {
+      "name": "gq-lote",
+      "description": "Returns motorcycle assembly lots for the requested number of months.",
+      "sql": "SELECT lote, id_montagem_motocicleta, nr_fabricacao, nr_inicio_serial, nr_posicao_serial, nr_qtd_digitos_serial, nr_qtd_producao FROM TB_MONTAGEM_MOTOCICLETA WHERE dt_montagem >= now() - (:p_NumMonth || ' months')::interval AND lote IS NOT NULL",
+      "parameters": [{"name": "p_NumMonth", "type": "integer", "required": true}],
+      "output_schema": [{"name": "lote"}, {"name": "id_montagem_motocicleta"}, {"name": "nr_fabricacao"}, {"name": "nr_inicio_serial"}, {"name": "nr_posicao_serial"}, {"name": "nr_qtd_digitos_serial"}, {"name": "nr_qtd_producao"}],
+      "budgets": {"max_rows": 10000}
+    }
+  ]
+}

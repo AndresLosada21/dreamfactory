@@ -48,7 +48,35 @@ class NamedQueryResource extends BaseRestResource
             throw new BadRequestException('Named Query parameters must be a JSON object.');
         }
 
+        // MCP generic tools can only send scalar body fields, so they pass the
+        // parameter map as a JSON-encoded string under "params_json".
+        if (isset($payload['params_json']) && is_string($payload['params_json'])) {
+            $decoded = json_decode($payload['params_json'], true);
+            if (!is_array($decoded)) {
+                throw new BadRequestException('params_json must be a JSON object string.');
+            }
+            $payload = $decoded;
+        }
+
         return $this->execute($payload);
+    }
+
+    public function listAccessComponents($schema = null, $refresh = false)
+    {
+        $output = [];
+        $queries = NamedQuery::forService($this->getServiceId())
+            ->where('is_active', true)
+            ->whereNotNull('published_revision_id')
+            ->orderBy('name')
+            ->pluck('name');
+
+        foreach ($queries as $name) {
+            if (!empty($this->getPermissions($name))) {
+                $output[] = static::RESOURCE_NAME . '/' . $name;
+            }
+        }
+
+        return $output;
     }
 
     private function execute(array $values): array
@@ -72,8 +100,33 @@ class NamedQueryResource extends BaseRestResource
             $query->publishedRevision->parameters ?? [],
             $values
         );
-        $rows = $this->parent->getConnection()->select($compiled->sql, $compiled->bindings);
+        $maxRows = $this->maxRows($query->publishedRevision->budgets ?? []);
+        // Stream the cursor so the budget prevents unbounded result materialization.
+        $rows = $this->parent->getConnection()->cursor($compiled->sql, $compiled->bindings);
 
-        return ['resource' => array_map(fn ($row) => (array) $row, $rows)];
+        return ['resource' => $this->collectRows($rows, $maxRows)];
+    }
+
+    protected function collectRows(iterable $rows, int $maxRows): array
+    {
+        $resource = [];
+        foreach ($rows as $row) {
+            $resource[] = (array) $row;
+            if (count($resource) >= $maxRows) {
+                break;
+            }
+        }
+
+        return $resource;
+    }
+
+    private function maxRows(array $budgets): int
+    {
+        $maxRows = $budgets['max_rows'] ?? null;
+        if ((!is_int($maxRows) && !(is_string($maxRows) && ctype_digit($maxRows))) || (int) $maxRows < 1) {
+            return $this->parent->getMaxRecordsLimit();
+        }
+
+        return min((int) $maxRows, $this->parent->getMaxRecordsLimit((int) $maxRows));
     }
 }

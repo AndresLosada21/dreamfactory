@@ -1,0 +1,25 @@
+{
+  "service_name": "gq_mi_pymac",
+  "queries": [
+    {
+      "name": "pymac-part-number",
+      "description": "Returns PYMAC inventory by part number with optional origin and destination filters.",
+      "sql": "SELECT pymac.part_number AS part_number, pymac.item_name AS item_name, pymac.origin AS origin, pymac.destination AS destination, pymac.qty_calc AS qty_calc FROM (SELECT itemno AS part_number, MAX(item_name) AS item_name, supplier AS origin, usercd AS destination, SUM(oh_qty) AS qty_calc FROM lymdaact.de_int_im WHERE oh_qty > 0 AND info_date = (SELECT MAX(info_date) FROM lymdaact.de_int_im) GROUP BY itemno, supplier, usercd) pymac WHERE pymac.part_number = :part_number AND (:origin IS NULL OR pymac.origin = :origin) AND (:destination IS NULL OR pymac.destination = :destination)",
+      "parameters": [
+        {"name": "part_number", "type": "string", "required": true},
+        {"name": "origin", "type": "string", "required": false},
+        {"name": "destination", "type": "string", "required": false}
+      ],
+      "output_schema": [{"name": "part_number"}, {"name": "item_name"}, {"name": "origin"}, {"name": "destination"}, {"name": "qty_calc"}],
+      "budgets": {"max_rows": 10000}
+    },
+    {
+      "name": "pymac-origin-destination",
+      "description": "Lists current PYMAC origin and destination codes.",
+      "sql": "SELECT od.origin_destination AS origin_destination, od.name AS name FROM (SELECT code AS origin_destination, code AS name FROM (SELECT DISTINCT TRIM(supplier) AS code FROM lymdaact.de_int_im WHERE info_date = (SELECT MAX(info_date) FROM lymdaact.de_int_im) AND TRIM(supplier) <> '' UNION SELECT DISTINCT TRIM(usercd) AS code FROM lymdaact.de_int_im WHERE info_date = (SELECT MAX(info_date) FROM lymdaact.de_int_im) AND TRIM(usercd) <> '')) od",
+      "parameters": [],
+      "output_schema": [{"name": "origin_destination"}, {"name": "name"}],
+      "budgets": {"max_rows": 10000}
+    }
+  ]
+}

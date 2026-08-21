@@ -17,7 +17,7 @@ After the image is running, enable Named Queries on the existing PostgreSQL
 service and import the first endpoint migration:
 
 ```sh
-php artisan named-query:enable-postgresql py_ptg_native
+php artisan named-query:enable-postgresql py_ptg
 php artisan named-query:import vendor/yamaha/df-named-query/database/definitions/py-ptg.json --publish
 ```
 

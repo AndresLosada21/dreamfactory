@@ -16,6 +16,11 @@
         <testsuite name="Unit">
             <directory suffix="Test.php">./tests/Unit</directory>
         </testsuite>
+
+        <testsuite name="Yamaha Extensions">
+            <directory suffix="Test.php">./extensions/df-named-query/tests</directory>
+            <directory suffix="Test.php">./extensions/df-informix/tests</directory>
+        </testsuite>
     </testsuites>
     <filter>
         <whitelist processUncoveredFilesFromWhitelist="true">

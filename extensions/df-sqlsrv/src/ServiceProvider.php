@@ -6,7 +6,7 @@ use DreamFactory\Core\Components\DbSchemaExtensions;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
 use DreamFactory\Core\Services\ServiceManager;
 use DreamFactory\Core\Services\ServiceType;
-use DreamFactory\Core\SqlDb\Database\Schema\SqlSchema;
+use Yamaha\DreamFactory\SqlServer\Database\Schema\SqlServerSchema;
 use Yamaha\DreamFactory\SqlServer\Models\SqlServerConfig;
 use Yamaha\DreamFactory\SqlServer\Services\SqlServer;
 
@@ -16,7 +16,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
     {
         $this->app->resolving('df.db.schema', function (DbSchemaExtensions $schemas) {
             $schemas->extend('sqlsrv', function ($connection) {
-                return new SqlSchema($connection);
+                return new SqlServerSchema($connection);
             });
         });
 

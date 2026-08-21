@@ -1,24 +1,51 @@
 services:
   dreamfactory:
-    image: yamaha/dreamfactory-query:0.1.3-ui
+    image: yamaha/dreamfactory-query:0.1.7-hot
     container_name: dreamfactory-hot
     ports:
       - "18082:80"
-    env_file:
-      - ../deployment-artifacts/dreamfactory.env.example
+    environment:
+      - CACHE_STORE=file
+      - CACHE_DRIVER=file
+      - SESSION_DRIVER=file
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=sqlite
+      - DF_CACHE_TTL=18000
+      # Base URL que o daemon MCP usa para chamar a API interna do DF
+      # (dentro do container a porta e 80, nao 18082).
+      - MCP_INTERNAL_BASE_URL=http://127.0.0.1
+      # JWT de 30 dias para suportar token MCP estatico (sem login no browser).
+      - DF_JWT_TTL=43200
     volumes:
       - dreamfactory-storage:/opt/dreamfactory/storage
       - ./extensions:/opt/dreamfactory/extensions:ro
+      # Composer loads these packages from vendor. Bind-mount them here so PHP
+      # reads local extension edits without rebuilding the image.
+      - ./extensions/df-named-query:/opt/dreamfactory/vendor/yamaha/df-named-query:ro
+      - ./extensions/df-oracle:/opt/dreamfactory/vendor/yamaha/df-oracle:ro
+      - ./extensions/df-sqlsrv:/opt/dreamfactory/vendor/yamaha/df-sqlsrv:ro
+      - ./extensions/df-informix:/opt/dreamfactory/vendor/yamaha/df-informix:ro
+      - ./docker/php-hot-reload.ini:/etc/php/8.5/fpm/conf.d/99-hot-reload.ini:ro
       - ./dreamfabric-admin/dist:/opt/dreamfactory/public/dreamfactory/dist
+      # Allow RFC 8414/9728 OAuth discovery (/.well-known/*) for the MCP Server.
+      - ./docker/nginx-dreamfactory.conf:/etc/nginx/sites-available/dreamfactory.conf:ro
+      # Start the MCP daemon on boot.
+      - ./docker/dreamfactory-entrypoint:/usr/local/bin/dreamfactory-entrypoint:ro
     restart: unless-stopped
   frontend-watch:
     image: node:20
     working_dir: /workspace
     volumes:
       - ./dreamfabric-admin:/workspace
-    command: sh -c "npm ci --ignore-scripts && npm run watch"
+      - /workspace/node_modules
+      - ./docker/frontend-proxy.hot.json:/workspace/frontend-proxy.hot.json:ro
+    command: sh -c "if [ ! -f node_modules/.bin/ng ]; then npm ci --ignore-scripts --no-audit --no-fund; fi; npx ng serve --host 0.0.0.0 --poll=1000 --proxy-config /workspace/frontend-proxy.hot.json"
     ports:
       - "4200:4200"
+    environment:
+      - HUSKY=0
+      - NODE_OPTIONS=--max-old-space-size=4096
 
 volumes:
   dreamfactory-storage:

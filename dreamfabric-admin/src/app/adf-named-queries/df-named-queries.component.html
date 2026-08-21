@@ -31,7 +31,7 @@
           <div class="query-actions">
             <span class="badge" [class.badge-published]="query.is_active ?? query.isActive" [class.badge-draft]="!(query.is_active ?? query.isActive)">{{ (query.is_active ?? query.isActive) ? 'Published' : 'Draft' }}</span>
             <button mat-stroked-button type="button" (click)="publish(query)" [disabled]="publishingId === query.id">
-              {{ publishingId === query.id ? 'Publishingâ€¦' : 'Publish latest' }}
+              {{ publishingId === query.id ? 'Publishing...' : 'Publish latest' }}
             </button>
           </div>
         </div>

@@ -44,3 +44,6 @@ after.sh
 .vscode
 
 /.phpunit.cache
+
+# Local-only helper that may contain environment-specific MCP credentials.
+/scripts/mcp-mint-static-token.php

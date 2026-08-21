@@ -3,11 +3,86 @@ set -euo pipefail
 
 cd /opt/dreamfactory
 mkdir -p storage/app storage/databases storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/limit_cache storage/logs bootstrap/cache
-touch storage/databases/database.sqlite
-chown -R www-data:www-data storage bootstrap/cache
+database_file=database/database.sqlite
+persistent_database=storage/databases/database.sqlite
+key_file=storage/.app_key
 
+# Keep SQLite data in the storage volume without hiding database/migrations.
+if [ ! -L "$database_file" ] && [ -f "$database_file" ] && { [ ! -s "$persistent_database" ] || [ "$database_file" -nt "$persistent_database" ]; }; then
+  cp "$database_file" "$persistent_database"
+fi
+touch "$persistent_database"
+rm -f "$database_file"
+ln -s /opt/dreamfactory/storage/databases/database.sqlite "$database_file"
+chown -R www-data:www-data storage bootstrap/cache database
+chown www-data:www-data "$persistent_database"
+chmod 664 "$database_file" 2>/dev/null || true
+chmod 775 database 2>/dev/null || true
+
+# Keep the encryption key beside the persistent SQLite database. This preserves
+# protected service settings when a hot image is rebuilt.
+if [ ! -f .env ]; then
+  cp .env-dist .env 2>/dev/null || true
+fi
+
+if [ ! -s "$key_file" ]; then
+  app_key="${APP_KEY:-}"
+  if [ -z "$app_key" ]; then
+    app_key="$(grep '^APP_KEY=' .env | head -n 1 | cut -c 9-)"
+  fi
+  if [ -z "$app_key" ]; then
+    app_key="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
+  fi
+  umask 077
+  printf '%s\n' "$app_key" > "$key_file"
+fi
+
+app_key="$(tr -d '\r\n' < "$key_file")"
+if [ -z "$app_key" ]; then
+  echo "Persistent APP_KEY is empty." >&2
+  exit 1
+fi
+if grep -q '^APP_KEY=' .env; then
+  sed -i "s|^APP_KEY=.*|APP_KEY=$app_key|" .env
+else
+  printf '\nAPP_KEY=%s\n' "$app_key" >> .env
+fi
+
+# PHP-FPM clears the Compose environment. Mirror the hot settings into .env so
+# CLI migrations and web requests use the same cache, session, and database settings.
+for env_name in APP_ENV APP_DEBUG DB_CONNECTION CACHE_STORE CACHE_DRIVER SESSION_DRIVER DF_CACHE_TTL MCP_INTERNAL_BASE_URL DF_JWT_TTL; do
+  env_value="${!env_name:-}"
+  if [ -z "$env_value" ]; then
+    continue
+  fi
+  if grep -q "^${env_name}=" .env; then
+    sed -i "s|^${env_name}=.*|${env_name}=${env_value}|" .env
+  else
+    printf '%s=%s\n' "$env_name" "$env_value" >> .env
+  fi
+done
+unset APP_KEY APP_ENV APP_DEBUG DB_CONNECTION CACHE_STORE CACHE_DRIVER SESSION_DRIVER DF_CACHE_TTL
+chown www-data:www-data "$key_file" .env
+chmod 600 "$key_file"
+chmod 640 .env
+
+# Bootstrap the cache tables before migrations so a fresh SQLite volume starts cleanly.
+php -r '$db = "/opt/dreamfactory/storage/databases/database.sqlite"; $pdo = new PDO("sqlite:" . $db); $pdo->exec("CREATE TABLE IF NOT EXISTS cache (key VARCHAR(255) PRIMARY KEY, value TEXT NOT NULL, expiration INTEGER NOT NULL)"); $pdo->exec("CREATE TABLE IF NOT EXISTS cache_locks (key VARCHAR(255) PRIMARY KEY, owner VARCHAR(255) NOT NULL, expiration INTEGER NOT NULL)");'
+php artisan migrate --force --no-interaction
 php artisan optimize:clear
+# Artisan runs as root during bootstrap and may recreate file-cache paths.
+chown -R www-data:www-data storage bootstrap/cache database
 service php8.5-fpm start
 service cron start
+
+# Start the DreamFactory MCP daemon (Node) so /mcp/* endpoints work.
+# PHP proxies MCP requests to it at 127.0.0.1:8006 (config mcp.daemon).
+daemon_dir=/opt/dreamfactory/vendor/dreamfactory/df-mcp-server/daemon
+if [ -f "$daemon_dir/dist/server.js" ]; then
+  if [ ! -d "$daemon_dir/node_modules" ]; then
+    (cd "$daemon_dir" && npm install --omit=dev --no-audit --no-fund) || true
+  fi
+  nohup node "$daemon_dir/dist/server.js" >/var/log/mcp-daemon.log 2>&1 &
+fi
 
 exec /usr/sbin/nginx -g "daemon off;"

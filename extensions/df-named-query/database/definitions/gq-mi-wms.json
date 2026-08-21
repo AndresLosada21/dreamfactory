@@ -1,0 +1,18 @@
+{
+  "service_name": "gq_mi_wms",
+  "queries": [
+    {
+      "name": "wms-part-number",
+      "description": "Returns WMS inventory by part number with optional location filters.",
+      "sql": "SELECT wms.part_number AS part_number, wms.part_name AS part_name, wms.origin AS origin, wms.destination AS destination, wms.qtd_saldo AS qtd_saldo, wms.subinventario AS subinventario, wms.enderecofrom AS enderecofrom, wms.nrolpn AS nrolpn, wms.setcode AS setcode FROM (SELECT CASE WHEN INSTR(cod_part_number, '-') > 0 THEN SUBSTR(cod_part_number, 1, INSTR(cod_part_number, '-') - 1) ELSE cod_part_number END AS part_number, dsc_part_name AS part_name, CASE WHEN INSTR(cod_part_number, '-') > 0 THEN SUBSTR(cod_part_number, INSTR(cod_part_number, '-') + 1, INSTR(cod_part_number, '-', -1) - INSTR(cod_part_number, '-') - 1) END AS origin, CASE WHEN INSTR(cod_part_number, '-') > 0 THEN SUBSTR(cod_part_number, INSTR(cod_part_number, '-', -1) + 1) END AS destination, qtd_item_lpn AS qtd_saldo, cod_sub_inv AS subinventario, cod_endereco AS enderecofrom, cod_lpn_num AS nrolpn, cod_setcode AS setcode FROM bdwms_yma.ym_wms_vw_lpn_erp WHERE INSTR(cod_part_number, '-') > 0) wms WHERE wms.part_number = :part_number AND (:subinventario IS NULL OR wms.subinventario = :subinventario) AND (:setcode IS NULL OR wms.setcode = :setcode) AND (:enderecofrom IS NULL OR wms.enderecofrom LIKE :enderecofrom)",
+      "parameters": [
+        {"name": "part_number", "type": "string", "required": true},
+        {"name": "subinventario", "type": "string", "required": false},
+        {"name": "setcode", "type": "string", "required": false},
+        {"name": "enderecofrom", "type": "string", "required": false}
+      ],
+      "output_schema": [{"name": "part_number"}, {"name": "part_name"}, {"name": "origin"}, {"name": "destination"}, {"name": "qtd_saldo"}, {"name": "subinventario"}, {"name": "enderecofrom"}, {"name": "nrolpn"}, {"name": "setcode"}],
+      "budgets": {"max_rows": 10000}
+    }
+  ]
+}

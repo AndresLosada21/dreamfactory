@@ -114,6 +114,12 @@ class NamedQueryRepository
                 throw new BadRequestException("Named Query $field must be an array.");
             }
         }
+        if (array_key_exists('max_rows', $definition['budgets'] ?? [])) {
+            $maxRows = $definition['budgets']['max_rows'];
+            if ((!is_int($maxRows) && !(is_string($maxRows) && ctype_digit($maxRows))) || (int) $maxRows < 1) {
+                throw new BadRequestException('Named Query budgets.max_rows must be a positive integer.');
+            }
+        }
         foreach ($definition['parameters'] ?? [] as $parameter) {
             if (!is_array($parameter) || empty($parameter['name']) ||
                 !preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $parameter['name'])) {
