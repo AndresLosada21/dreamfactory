@@ -1,0 +1,165 @@
+<div class="ai-chat">
+  <!-- Service picker (top bar): only relevant if multiple services exist -->
+  <header class="ai-chat__header">
+    <div class="ai-chat__header-left">
+      <h2>AI Chat</h2>
+      <mat-form-field
+        *ngIf="chatServices.length > 1"
+        appearance="outline"
+        subscriptSizing="dynamic"
+        class="ai-chat__service-picker">
+        <mat-label>Chat Service</mat-label>
+        <mat-select
+          [value]="selectedServiceName"
+          (selectionChange)="selectService($event.value)">
+          <mat-option
+            *ngFor="let s of chatServices; trackBy: trackServiceName"
+            [value]="s.name">
+            {{ s.label || s.name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+      <span *ngIf="chatServices.length === 1" class="ai-chat__service-name">
+        {{ chatServices[0].label || chatServices[0].name }}
+      </span>
+    </div>
+
+    <div class="ai-chat__header-right">
+      <!-- Resolved reach for the "act as" role: the boundary, made visible
+           before the first message. -->
+      <div
+        *ngIf="actAsScopeChips.length > 0"
+        class="ai-chat__scope-group"
+        title="What this role can reach">
+        <fa-icon [icon]="faUserShield"></fa-icon>
+        <span class="ai-chat__scope-label">Role can reach:</span>
+        <df-badge
+          *ngFor="let chip of actAsScopeChips"
+          [variant]="chip.inherited ? 'neutral' : 'data'"
+          [dot]="false"
+          [label]="chip.label"></df-badge>
+      </div>
+
+      <div *ngIf="dataScope.length > 0" class="ai-chat__scope-group">
+        <fa-icon [icon]="faDatabase"></fa-icon>
+        <span class="ai-chat__scope-label">Data scope:</span>
+        <span *ngFor="let svc of dataScope" class="ai-chat__scope-chip">
+          {{ svc }}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Empty state: no chat services configured -->
+  <div
+    *ngIf="!loadingServices && chatServices.length === 0"
+    class="ai-chat__empty">
+    <df-empty-state
+      icon="forum"
+      title="No AI Chat services yet"
+      description="Create one under AI / Chat Services to start chatting."
+      actionLabel="Create chat service"
+      (action)="goToCreateService()"></df-empty-state>
+  </div>
+
+  <!-- Loading services -->
+  <div *ngIf="loadingServices" class="ai-chat__loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <!-- Main layout: session list + message feed -->
+  <div
+    *ngIf="!loadingServices && chatServices.length > 0"
+    class="ai-chat__body">
+    <div class="ai-chat__sidebar">
+      <!-- Admin-only: start the next New Chat "as" a role and see exactly what
+           that role sees. Sits above New chat so the role is picked first. -->
+      <div *ngIf="isSysAdmin && actAsRoles.length > 0" class="ai-chat__act-as">
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+          class="ai-chat__act-as-field">
+          <mat-label>Act as role</mat-label>
+          <mat-select
+            [(value)]="selectedActAsRoleId"
+            (selectionChange)="onActAsRoleChange()">
+            <mat-option [value]="null">Myself (admin, full access)</mat-option>
+            <mat-option
+              *ngFor="let r of actAsRoles; trackBy: trackRoleId"
+              [value]="r.id">
+              {{ r.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        <span class="ai-chat__act-as-hint">
+          Pick a role before starting a new chat.
+        </span>
+      </div>
+
+      <df-chat-session-list
+        class="ai-chat__session-list"
+        [sessions]="sessions"
+        [activeId]="activeSession?.id ?? null"
+        [loading]="loadingSessions"
+        (newSession)="newChat()"
+        (select)="openSession($event.id)"
+        (delete)="deleteSession($event)"></df-chat-session-list>
+    </div>
+
+    <main class="ai-chat__main">
+      <div *ngIf="errorMessage" class="ai-chat__error">
+        {{ errorMessage }}
+      </div>
+
+      <div
+        *ngIf="!activeSession && !loadingSession"
+        class="ai-chat__placeholder">
+        <df-empty-state
+          icon="chat"
+          title="Start a conversation"
+          description="Select a session on the left, or start a new chat."
+          actionLabel="New chat"
+          (action)="newChat()"></df-empty-state>
+      </div>
+
+      <div *ngIf="loadingSession" class="ai-chat__loading">
+        <mat-spinner diameter="32"></mat-spinner>
+      </div>
+
+      <ng-container *ngIf="activeSession">
+        <div
+          class="ai-chat__messages"
+          #messageScroll
+          (scroll)="onMessagesScroll($event)">
+          <div *ngIf="messages.length === 0" class="ai-chat__placeholder">
+            <df-empty-state
+              icon="storage"
+              title="Ask anything about your data"
+              description="This assistant answers over the services and tables its role can reach."></df-empty-state>
+          </div>
+          <!-- Suggestion chips only ever appear on the newest message (the
+               child renders them solely for assistant messages) and never
+               while a reply is in flight; a picked chip goes through the
+               same send flow as typed input. -->
+          <df-chat-message
+            *ngFor="let m of messages; trackBy: trackMsg; let isLast = last"
+            [message]="m"
+            [rate]="chatRate"
+            [model]="chatModel"
+            [showSuggestions]="isLast && !awaitingAssistant"
+            (regenerate)="regenerateFrom($event)"
+            (suggestionSelected)="send($event)"
+            class="ai-chat__message"></df-chat-message>
+          <div *ngIf="awaitingAssistant" class="ai-chat__thinking">
+            <mat-spinner diameter="16"></mat-spinner>
+            <span>Thinking…</span>
+          </div>
+        </div>
+
+        <df-chat-input
+          [busy]="awaitingAssistant"
+          (send)="send($event)"></df-chat-input>
+      </ng-container>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,35 @@
+{
+  "scriptName": "Script Name",
+  "scriptMethod": "Script Method",
+  "scriptType": "Script Type",
+  "scriptLocation": "Script Location",
+  "tableName": "Table Name",
+  "active": "Active",
+  "importScriptFile": "Import a script file",
+  "fromDesktop": "From Desktop",
+  "fromGitHub": "From GitHub",
+  "selectFile": "Select File",
+  "linkToService": "Link to a service",
+  "service": "Service",
+  "repository": "Repository",
+  "branch": "Branch/Tag",
+  "path": "Path",
+  "viewLatest": "View Latest",
+  "deleteCache": "Delete Cache",
+  "deleteSuccessMsg": "Script deleted",
+  "createSuccessMsg": "Script created",
+  "updateSuccessMsg": "Script updated",
+  "getScriptSuccessMsg": "Script file loaded",
+  "fetchCacheSuccessMsg": "Latest script pulled from source",
+  "deleteCacheSuccessMsg": "Script cleared from cache",
+  "scriptTypes": {
+    "javascript": "JavaScript",
+    "php": "PHP",
+    "python": "Python",
+    "python3": "Python3",
+    "nodejs": "Node.js"
+  },
+  "errors": {
+    "githubImport": "Error: Invalid file format. Only js, php, py, txt file format(s) allowed"
+  }
+}

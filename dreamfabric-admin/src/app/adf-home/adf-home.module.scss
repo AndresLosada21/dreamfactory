@@ -1,0 +1,43 @@
+.platforms-section,
+.installers-section {
+  article {
+    padding: 25px 0;
+  }
+}
+
+section {
+  padding-top: 20px;
+  padding-bottom: 36px;
+
+  // Departure type hierarchy for home-section headings; tokens keep all
+  // three themes legible.
+  h2 {
+    font-size: 1.8rem;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    color: var(--df-text);
+  }
+
+  h3 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--df-text);
+  }
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.flex-list-container {
+  display: flex;
+  flex-wrap: wrap;
+  list-style-type: none;
+  padding: 0;
+
+  &.x-small {
+    justify-content: center;
+  }
+}

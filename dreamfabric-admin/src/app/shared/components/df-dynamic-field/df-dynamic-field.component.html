@@ -1,0 +1,106 @@
+<div>
+  <mat-form-field
+    subscriptSizing="dynamic"
+    appearance="outline"
+    *ngIf="
+      [
+        'integer',
+        'password',
+        'string',
+        'string',
+        'picklist',
+        'multi_picklist',
+        'text',
+      ].includes(schema.type)
+    ">
+    <mat-label *ngIf="showLabel">{{ schema.label }}</mat-label>
+    <input
+      *ngIf="['integer', 'string', 'password', 'text'].includes(schema.type)"
+      matInput
+      [formControl]="control"
+      [type]="
+        schema.type === 'integer'
+          ? 'number'
+          : schema.type === 'password'
+            ? 'password'
+            : 'text'
+      "
+      [attr.autocomplete]="
+        schema.type === 'password' ? 'current-password' : 'off'
+      "
+      [attr.aria-label]="schema.label" />
+    <mat-select
+      *ngIf="['picklist', 'multi_picklist'].includes(schema.type)"
+      [multiple]="schema.type === 'multi_picklist'"
+      [formControl]="control">
+      <mat-option
+        *ngFor="let option of schema.values; trackBy: trackByOptionName"
+        [value]="option.name">
+        {{ option.label }}
+      </mat-option>
+    </mat-select>
+    <fa-icon
+      *ngIf="schema.description"
+      class="tool-tip-trigger"
+      matSuffix
+      [icon]="faCircleInfo"
+      [matTooltip]="schema.description" />
+  </mat-form-field>
+
+  <!-- Use new file selector for file_certificate_api type -->
+  <ng-container *ngIf="schema.type === 'file_certificate_api'">
+    <df-file-selector
+      #fileSelector
+      [label]="schema.label"
+      [description]="schema.description || ''"
+      [allowedExtensions]="['.p8', '.pem', '.key']"
+      [initialValue]="control.value"
+      (fileSelected)="onFileSelected($event)">
+    </df-file-selector>
+  </ng-container>
+
+  <!-- Standard file upload for file_certificate type -->
+  <ng-container *ngIf="schema.type === 'file_certificate'"
+    ><input
+      type="file"
+      #fileInput
+      (change)="handleFileInput($event)"
+      style="display: none" />
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="fileInput.click()"
+      [matTooltip]="schema.description ?? ''">
+      {{ schema.label }}
+    </button>
+    {{ control.value ? control.value.name : ('noFileSelected' | transloco) }}
+  </ng-container>
+  <mat-slide-toggle
+    *ngIf="schema.type === 'boolean'"
+    [formControl]="control"
+    color="primary"
+    [matTooltip]="schema.description ?? ''"
+    [attr.aria-label]="schema.label"
+    ><ng-container *ngIf="showLabel"
+      ><span>{{ schema.label }}</span></ng-container
+    ></mat-slide-toggle
+  >
+  <mat-form-field
+    *ngIf="schema.type === 'event_picklist'"
+    subscriptSizing="dynamic">
+    <mat-label *ngIf="showLabel">{{ schema.label }}</mat-label>
+    <input
+      type="text"
+      matInput
+      [formControl]="control"
+      [matAutocomplete]="auto"
+      [attr.aria-label]="schema.label" />
+    <mat-autocomplete #auto="matAutocomplete">
+      <mat-option
+        *ngFor="let option of filteredEventList | async; trackBy: trackByValue"
+        [value]="option">
+        {{ option }}
+      </mat-option>
+    </mat-autocomplete>
+  </mat-form-field>
+</div>

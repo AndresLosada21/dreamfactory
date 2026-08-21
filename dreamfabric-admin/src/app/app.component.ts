@@ -1,0 +1,217 @@
+import { Component, HostListener, OnInit } from '@angular/core';
+import { DfLoadingSpinnerService } from './shared/services/df-loading-spinner.service';
+import { NgIf, AsyncPipe } from '@angular/common';
+import {
+  ActivatedRoute,
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  NavigationStart,
+  Router,
+  RouterOutlet,
+} from '@angular/router';
+import { DfSideNavComponent } from './shared/components/df-side-nav/df-side-nav.component';
+import { DfEngagementBannerComponent } from './shared/components/df-engagement-banner/df-engagement-banner.component';
+import { DfLicenseCheckService } from './shared/services/df-license-check.service';
+import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
+import { AuthService } from './shared/services/auth.service';
+import { LoggingService } from './shared/services/logging.service';
+import { LoginResponse } from './shared/types/auth.types';
+import { ROUTES } from './shared/types/routes';
+import { IntercomService } from './shared/services/intercom.service';
+import { DfUserDataService } from './shared/services/df-user-data.service';
+import { DfCommandPaletteService } from './shared/components/df-command-palette/df-command-palette.service';
+import { filter } from 'rxjs';
+
+@UntilDestroy({ checkProperties: true })
+@Component({
+  selector: 'df-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss'],
+  standalone: true,
+  imports: [
+    DfSideNavComponent,
+    DfEngagementBannerComponent,
+    RouterOutlet,
+    NgIf,
+    AsyncPipe,
+  ],
+})
+export class AppComponent implements OnInit {
+  title = 'df-admin-interface';
+  activeSpinner$ = this.loadingSpinnerService.active;
+  licenseCheck$ = this.licenseCheckService.licenseCheck$;
+
+  constructor(
+    private loadingSpinnerService: DfLoadingSpinnerService,
+    private licenseCheckService: DfLicenseCheckService,
+    private authService: AuthService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private loggingService: LoggingService,
+    private intercomService: IntercomService,
+    private dfUserDataService: DfUserDataService,
+    private commandPalette: DfCommandPaletteService
+  ) {}
+
+  /**
+   * Global Cmd/Ctrl-K opens the command palette from any surface. Bound on
+   * the shell root so it works regardless of focus, except inside the palette
+   * itself (its own input handles Escape). Only when authenticated - there is
+   * nothing to jump to on the login screen.
+   */
+  @HostListener('document:keydown', ['$event'])
+  onGlobalKeydown(event: KeyboardEvent): void {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      if (!this.authService.isAuthenticated()) {
+        return;
+      }
+      event.preventDefault();
+      this.commandPalette.toggle();
+    }
+  }
+
+  ngOnInit() {
+    this.loggingService.log('AppComponent initialized');
+    this.handleAuthentication();
+    this.watchRouteLoading();
+
+    // Initialize Intercom after authentication
+    this.initializeIntercom();
+
+    // Watch for user data changes to update Intercom
+    this.dfUserDataService.userData$
+      .pipe(untilDestroyed(this))
+      .subscribe(userData => {
+        if (userData) {
+          // Update Intercom with new user data
+          this.intercomService.updateUser(userData);
+        } else {
+          // User logged out, shutdown Intercom
+          this.intercomService.shutdownIntercom();
+        }
+      });
+
+    // Monitor license check changes and redirect when disable_ui is true
+    this.licenseCheck$.pipe(untilDestroyed(this)).subscribe(licenseCheck => {
+      if (licenseCheck?.disableUi === 'true') {
+        // Force navigation to license-expired page
+        if (!this.router.url.includes(ROUTES.LICENSE_EXPIRED)) {
+          this.router.navigate([ROUTES.LICENSE_EXPIRED]);
+        }
+      }
+    });
+  }
+
+  private watchRouteLoading() {
+    this.router.events
+      .pipe(
+        filter(
+          event =>
+            event instanceof NavigationStart ||
+            event instanceof NavigationEnd ||
+            event instanceof NavigationCancel ||
+            event instanceof NavigationError
+        ),
+        untilDestroyed(this)
+      )
+      .subscribe(event => {
+        if (event instanceof NavigationStart) {
+          this.loadingSpinnerService.active = true;
+          return;
+        }
+        this.loadingSpinnerService.active = false;
+      });
+  }
+
+  private handleAuthentication() {
+    this.loggingService.log('Handling authentication');
+
+    const fullUrl = window.location.href;
+    this.loggingService.log(`Full URL: ${fullUrl}`);
+
+    const jwtMatch = fullUrl.match(/[?&]jwt=([^&#]*)/);
+    const jwt = jwtMatch ? jwtMatch[1] : null;
+
+    const errorMatch = fullUrl.match(/[?&]error=([^&#]*)/);
+    const error = errorMatch ? decodeURIComponent(errorMatch[1]) : null;
+    const sessionTokenMatch = fullUrl.match(/[?&]session_token=([^&#]*)/);
+    const sessionToken = sessionTokenMatch ? sessionTokenMatch[1] : null;
+
+    if (error) {
+      this.loggingService.log(`OAuth error found: ${error}`);
+
+      // Carry the error in the navigation itself. A shared error bus would
+      // race the NavigationStart clearing in DfErrorService: this navigation
+      // starts before DfLoginComponent subscribes, wiping the error.
+      this.router.navigate(['/auth/login'], {
+        state: { loginError: error },
+      });
+      return;
+    } else if (jwt) {
+      this.loggingService.log(`JWT found in URL: ${jwt.substring(0, 20)}...`);
+      this.authService.loginWithJwt(jwt).subscribe(
+        (user: LoginResponse) => {
+          const isAuthenticated = !!(user.session_token || user.sessionToken);
+          this.loggingService.log(
+            `Login successful for user: ${
+              isAuthenticated ? 'Authenticated' : 'Unknown'
+            }`
+          );
+          window.location.href = '/dreamfactory/dist/#/home'; // Use window.location.href for hash-based routing
+        },
+        error => {
+          this.loggingService.log(`Login failed: ${JSON.stringify(error)}`);
+          window.location.href = '/dreamfactory/dist/#/auth/login';
+        }
+      );
+    } else if (sessionToken) {
+      this.loggingService.log(`Session token found in URL`);
+      this.authService.loginWithJwt(sessionToken).subscribe(
+        (user: LoginResponse) => {
+          const isAuthenticated = !!(user.session_token || user.sessionToken);
+          this.loggingService.log(
+            `OAuth login successful: ${
+              isAuthenticated ? 'Authenticated' : 'Unknown'
+            }`
+          );
+          window.location.href = '/#/home';
+        },
+        (error: unknown) => {
+          this.loggingService.log(
+            `OAuth login failed: ${JSON.stringify(error)}`
+          );
+          window.location.href = '/#/auth/login';
+        }
+      );
+    } else {
+      this.loggingService.log('No JWT or session token found in URL');
+      if (!this.authService.isAuthenticated()) {
+        this.loggingService.log(
+          'User not logged in, redirecting to login page'
+        );
+      } else {
+        this.loggingService.log('User is already logged in');
+        window.location.href = '/dreamfactory/dist/#/home';
+      }
+    }
+  }
+
+  private async initializeIntercom(): Promise<void> {
+    try {
+      // Wait a bit for authentication and environment data to complete
+      setTimeout(async () => {
+        // Ensure environment data is loaded
+        await this.intercomService.initializeIntercom();
+      }, 2000); // Increased delay to ensure environment data is loaded
+    } catch (error) {
+      this.loggingService.log(`Failed to initialize Intercom: ${error}`);
+    }
+  }
+
+  someMethod() {
+    if (!this.authService.isAuthenticated()) {
+      // Handle not logged in state
+    }
+  }
+}

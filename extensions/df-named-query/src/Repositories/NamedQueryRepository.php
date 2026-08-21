@@ -19,13 +19,18 @@ class NamedQueryRepository
         $this->assertServiceExists((int) $definition['service_id']);
 
         return DB::transaction(function () use ($definition, $actorId) {
-            $query = NamedQuery::create([
+            $attributes = [
                 'service_id' => $definition['service_id'],
                 'name' => $definition['name'],
                 'description' => $definition['description'] ?? null,
                 'is_active' => false,
                 'lock_version' => 1,
-            ]);
+            ];
+            if ($actorId !== null) {
+                $attributes['created_by_id'] = $actorId;
+                $attributes['last_modified_by_id'] = $actorId;
+            }
+            $query = NamedQuery::create($attributes);
             $this->createRevision($query, $definition, $actorId);
 
             return $query->fresh('revisions');
@@ -45,17 +50,27 @@ class NamedQueryRepository
             if ((int) $definition['service_id'] !== (int) $query->service_id) {
                 throw new BadRequestException('A Named Query cannot change its source service.');
             }
+            if ($definition['name'] !== $query->name) {
+                throw new BadRequestException('A Named Query cannot change its endpoint name.');
+            }
 
             $revision = $this->createRevision($query, $definition, $actorId);
-            $query->increment('lock_version');
+            if (array_key_exists('description', $definition)) {
+                $query->description = $definition['description'] ?: null;
+            }
+            $query->lock_version++;
+            if ($actorId !== null) {
+                $query->last_modified_by_id = $actorId;
+            }
+            $query->save();
 
             return $revision;
         });
     }
 
-    public function publish(int $queryId, int $revisionId, int $expectedLockVersion): NamedQuery
+    public function publish(int $queryId, int $revisionId, int $expectedLockVersion, ?int $actorId = null): NamedQuery
     {
-        return DB::transaction(function () use ($queryId, $revisionId, $expectedLockVersion) {
+        return DB::transaction(function () use ($queryId, $revisionId, $expectedLockVersion, $actorId) {
             $query = NamedQuery::lockForUpdate()->find($queryId);
             if (!$query) {
                 throw new NotFoundException("Named Query '$queryId' was not found.");
@@ -72,6 +87,9 @@ class NamedQueryRepository
             $query->published_revision_id = $revision->id;
             $query->is_active = true;
             $query->lock_version++;
+            if ($actorId !== null) {
+                $query->last_modified_by_id = $actorId;
+            }
             $query->save();
 
             return $query->fresh('publishedRevision');
@@ -93,6 +111,7 @@ class NamedQueryRepository
             'revision' => $revision,
             'checksum' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR)),
             'created_by_id' => $actorId,
+            'last_modified_by_id' => $actorId,
         ]);
     }
 
@@ -106,6 +125,9 @@ class NamedQueryRepository
         }
         if (empty($definition['sql']) || !is_string($definition['sql'])) {
             throw new BadRequestException('Named Query SQL is required.');
+        }
+        if (isset($definition['description']) && !is_string($definition['description'])) {
+            throw new BadRequestException('Named Query description must be a string.');
         }
 
         (new NamedSqlCompiler())->assertReadOnly($definition['sql']);

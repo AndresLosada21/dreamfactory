@@ -1,0 +1,222 @@
+import { HttpClient, HttpContext, HttpHeaders } from '@angular/common/http';
+import { RequestOptions } from 'src/app/shared/types/generic-http';
+import { readAsText } from 'src/app/shared/utilities/file';
+import { map, switchMap } from 'rxjs';
+import { Inject, Injectable } from '@angular/core';
+import { URL_TOKEN } from '../constants/tokens';
+import { ERROR_HANDLING, SUCCESS_TOAST } from '../utilities/http-contexts';
+
+@Injectable()
+export class DfBaseCrudService {
+  constructor(
+    @Inject(URL_TOKEN) private url: string,
+    private http: HttpClient
+  ) {}
+
+  getAll<T>(options?: Partial<RequestOptions>) {
+    return this.http.get<T>(
+      this.url,
+      this.getOptions({
+        limit: 50,
+        offset: 0,
+        includeCount: true,
+        ...options,
+      })
+    );
+  }
+
+  get<T>(id: string | number, options?: Partial<RequestOptions>) {
+    return this.http.get<T>(
+      `${this.url}/${id}`,
+      this.getOptions({ ...options })
+    );
+  }
+
+  getFileContent(id: string, username?: string, token?: string) {
+    let headers = new HttpHeaders();
+    if (username && token) {
+      headers = headers.set(
+        'Authorization',
+        'Basic ' + btoa(`${username}:${token}`)
+      );
+    }
+    return this.http.get(`${this.url}/${id}`, { headers });
+  }
+
+  getEventScripts<T>() {
+    return this.http.get<T>(
+      '/api/v2/system/event_script',
+      this.getOptions({
+        limit: 50,
+        offset: 0,
+        includeCount: true,
+      })
+    );
+  }
+
+  getReleases() {
+    const apiUrl =
+      'https://api.github.com/repos/dreamfactorysoftware/df-admin-interface/releases';
+    return this.http.get(apiUrl);
+  }
+
+  create<T>(data: any, options?: Partial<RequestOptions>, endpoint?: string) {
+    return this.http.post<T>(
+      `${this.url}${endpoint ? `/${endpoint}` : ''}`,
+      data,
+      this.getOptions({ ...options })
+    );
+  }
+
+  update<T, S>(
+    id: string | number,
+    data: S,
+    options?: Partial<RequestOptions>
+  ) {
+    return this.http.put<T>(
+      `${this.url}/${id}`,
+      data,
+      this.getOptions({ ...options })
+    );
+  }
+
+  legacyDelete(endpoint: string, options?: Partial<RequestOptions>) {
+    const { headers, params, context } = this.getOptions({
+      ...options,
+    });
+    return this.http.post(`${this.url}/${endpoint}`, null, {
+      headers: { ...headers, 'X-Http-Method': 'DELETE' },
+      params,
+      context,
+    });
+  }
+
+  delete(
+    id: string | number | Array<string | number>,
+    options?: Partial<RequestOptions>
+  ) {
+    const url = Array.isArray(id)
+      ? `${this.url}?ids=${id.join(',')}`
+      : id
+        ? `${this.url}/${id}`
+        : `${this.url}`;
+    return this.http.delete(url, this.getOptions({ ...options }));
+  }
+
+  patch<T, S>(id: string | number, data: S, options?: Partial<RequestOptions>) {
+    return this.http.patch<T>(
+      `${this.url}/${id}`,
+      data,
+      this.getOptions({ ...options })
+    );
+  }
+
+  importList(file: File, options?: Partial<RequestOptions>) {
+    return readAsText(file).pipe(
+      switchMap(data =>
+        this.http.post(
+          this.url,
+          data,
+          this.getOptions({
+            contentType: file.type,
+            ...options,
+          })
+        )
+      )
+    );
+  }
+
+  uploadFile(
+    location: string,
+    files: FileList,
+    options?: Partial<RequestOptions>
+  ) {
+    const formData = new FormData();
+    Object.keys(files).forEach((f, i) => formData.append('files', files[i]));
+    return this.http.post(
+      `${this.url}/${location}`,
+      formData,
+      this.getOptions({
+        ...options,
+      })
+    );
+  }
+
+  downloadJson(path?: string, options?: Partial<RequestOptions>) {
+    const url = `${this.url}${path ? `/${path}` : ''}`;
+    return this.http
+      .get(url, {
+        ...this.getOptions({
+          ...options,
+        }),
+      })
+      .pipe(map(res => JSON.stringify(res)));
+  }
+
+  downloadFile(path?: string, options?: Partial<RequestOptions>) {
+    const url = `${this.url}${path ? `/${path}` : ''}`;
+    return this.http.get(url, {
+      responseType: 'blob',
+      ...this.getOptions({
+        ...options,
+      }),
+    });
+  }
+
+  getOptions(options: Partial<RequestOptions>) {
+    const headers: any = {};
+    const params: any = {};
+    let context = new HttpContext();
+    if (options.includeCacheControl !== false) {
+      headers['Cache-Control'] = 'no-cache, private';
+    }
+    if (options.showSpinner !== false) {
+      headers['show-loading'] = '';
+    }
+    if (options.snackbarSuccess) {
+      context = context.set(SUCCESS_TOAST, options.snackbarSuccess);
+    }
+    if (options.errorHandling) {
+      context = context.set(ERROR_HANDLING, options.errorHandling);
+    }
+    if (options.contentType) {
+      headers['Content-type'] = options.contentType;
+    }
+    if (options.additionalHeaders) {
+      options.additionalHeaders.forEach(header => {
+        headers[header.key] = header.value;
+      });
+    }
+    if (options.filter) {
+      params.filter = options.filter;
+    }
+    if (options.sort) {
+      params.sort = options.sort;
+    }
+    if (options.fields) {
+      params.fields = options.fields;
+    }
+    if (options.related) {
+      params.related = options.related;
+    }
+    if (options.limit !== undefined) {
+      params.limit = options.limit;
+    }
+    if (options.offset !== undefined) {
+      params.offset = options.offset;
+    }
+    if (options.includeCount !== undefined) {
+      params.include_count = options.includeCount;
+    }
+    if (options.refresh) {
+      params.refresh = options.refresh;
+    }
+
+    if (options.additionalParams) {
+      options.additionalParams.forEach(param => {
+        params[param.key] = param.value;
+      });
+    }
+    return { headers, params, context };
+  }
+}

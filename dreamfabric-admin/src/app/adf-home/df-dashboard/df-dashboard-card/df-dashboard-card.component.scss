@@ -1,0 +1,269 @@
+// Departure language: flat bordered stat tiles on tokens. The old
+// gradient icon chips, purple literals, and elevation shadows broke
+// dark contrast and phosphor by construction; every color below rides
+// --df-* so all three themes come free. Card surface + border come
+// from the global .mat-mdc-card treatment in styles.scss.
+
+.dashboard-card {
+  height: 100%;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+  cursor: default;
+
+  &.clickable {
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--df-accent);
+      background-color: var(--df-hover);
+    }
+  }
+
+  .mat-card-content {
+    padding: 20px;
+  }
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+// Icon chip: quiet accent/status wash instead of the old gradients.
+.icon-container {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--df-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  background: var(--df-accent-soft);
+  border: 1px solid var(--df-border-2);
+
+  fa-icon {
+    font-size: 24px;
+    color: var(--df-accent);
+  }
+
+  &.icon-success {
+    background: var(--df-success-soft);
+    border-color: var(--df-success-border);
+
+    fa-icon {
+      color: var(--df-success);
+    }
+  }
+
+  &.icon-warn {
+    background: var(--df-danger-soft);
+    border-color: var(--df-danger-border);
+
+    fa-icon {
+      color: var(--df-danger);
+    }
+  }
+
+  // Coordinated category tint (punch item 21): when [data-category] is set,
+  // the chip's wash + glyph take the --df-tint-<category>-* tokens. This
+  // brings the old purple/green/blue chip energy back, but token-driven so
+  // every theme repaints for free. Placed after the color classes so it
+  // wins by source order at equal specificity. Zero color literals.
+  &[data-category='build'] {
+    background: var(--df-tint-build-bg);
+    border-color: var(--df-border-2);
+    fa-icon {
+      color: var(--df-tint-build-fg);
+    }
+  }
+  &[data-category='data'] {
+    background: var(--df-tint-data-bg);
+    border-color: var(--df-border-2);
+    fa-icon {
+      color: var(--df-tint-data-fg);
+    }
+  }
+  &[data-category='security'] {
+    background: var(--df-tint-security-bg);
+    border-color: var(--df-border-2);
+    fa-icon {
+      color: var(--df-tint-security-fg);
+    }
+  }
+  &[data-category='system'] {
+    background: var(--df-tint-system-bg);
+    border-color: var(--df-border-2);
+    fa-icon {
+      color: var(--df-tint-system-fg);
+    }
+  }
+  &[data-category='admin'] {
+    background: var(--df-tint-admin-bg);
+    border-color: var(--df-border-2);
+    fa-icon {
+      color: var(--df-tint-admin-fg);
+    }
+  }
+  &[data-category='ai'] {
+    background: var(--df-tint-ai-bg);
+    border-color: var(--df-border-2);
+    fa-icon {
+      color: var(--df-tint-ai-fg);
+    }
+  }
+  &[data-category='docs'] {
+    background: var(--df-tint-docs-bg);
+    border-color: var(--df-border-2);
+    fa-icon {
+      color: var(--df-tint-docs-fg);
+    }
+  }
+}
+
+.header-stats {
+  .trend {
+    font-size: 1.4rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    &.trend-up {
+      color: var(--df-success);
+    }
+
+    &.trend-down {
+      color: var(--df-danger);
+    }
+
+    fa-icon {
+      font-size: 1.2rem;
+    }
+  }
+}
+
+.card-body {
+  // Micro-header over the stat, per the departure table/section header
+  // treatment.
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--df-text-muted);
+    margin: 0 0 8px 0;
+  }
+
+  .card-value {
+    font-size: 3.2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--df-text);
+    line-height: 1.2;
+
+    &.zero-state-cta {
+      font-size: 2rem;
+      font-weight: 600;
+      line-height: 1.3;
+      color: var(--df-accent);
+      padding: 8px 0;
+      transition: all 0.3s ease;
+    }
+  }
+
+  .card-subtitle {
+    font-size: 1.2rem;
+    color: var(--df-text-faint);
+    margin: 4px 0 0 0;
+  }
+}
+
+.card-footer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--df-border-2);
+
+  .footer-text {
+    font-size: 1.2rem;
+    color: var(--df-text-2);
+  }
+}
+
+// Prompt row under a zero-value stat.
+::ng-deep [prompt] {
+  font-size: 1.3rem;
+  color: var(--df-text-2);
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--df-surface-2);
+  border-radius: var(--df-radius-sm);
+  transition: all 0.2s ease;
+
+  span {
+    position: relative;
+    flex: 1;
+  }
+}
+
+// Zero value: accent-bordered call to action, still flat.
+.dashboard-card.zero-value {
+  border: 1px solid var(--df-accent);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer !important;
+  transition: all 0.2s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--df-accent);
+  }
+
+  .card-value.zero-state-cta {
+    position: relative;
+
+    &::after {
+      content: '→';
+      position: absolute;
+      right: -25px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 2rem;
+      color: var(--df-accent);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+  }
+
+  ::ng-deep [prompt] {
+    background: var(--df-accent-soft);
+    color: var(--df-accent);
+    font-weight: 500;
+  }
+
+  &:hover {
+    border-color: var(--df-accent-strong);
+    background-color: var(--df-hover);
+
+    .card-value.zero-state-cta {
+      transform: translateX(-5px);
+
+      &::after {
+        opacity: 1;
+        right: -30px;
+      }
+    }
+  }
+}

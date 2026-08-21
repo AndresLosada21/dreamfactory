@@ -1,0 +1,26 @@
+<df-files-table>
+  <ng-container topActions>
+    <button
+      class="save-btn"
+      mat-mini-fab
+      color="primary"
+      [attr.aria-label]="'files.createFolder' | transloco"
+      (click)="createFolder()">
+      <fa-icon [icon]="faFolderPlus" size="xl"></fa-icon>
+    </button>
+    <button
+      class="save-btn"
+      mat-mini-fab
+      color="primary"
+      [attr.aria-label]="'importList' | transloco"
+      (click)="fileInput.click()">
+      <fa-icon [icon]="faUpload" size="xl"></fa-icon>
+    </button>
+    <input
+      type="file"
+      #fileInput
+      multiple
+      (change)="uploadFile($event)"
+      style="display: none" />
+  </ng-container>
+</df-files-table>

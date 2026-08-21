@@ -1,0 +1,1024 @@
+// ============================================================
+// Service edit form, stream 8 "departure" treatment.
+// Everything rides the global --df-* tokens (src/styles.scss),
+// so light and dark both inherit the finish. Flat bordered
+// surfaces, hairline separators, the shared corner scale, and
+// the tight departure type hierarchy. No palette literals.
+// ============================================================
+
+.grid-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+// Health panel sits at the top of every service edit page, above whatever
+// that type's page opens with (Overview card, stepper-less form, ...). The
+// form is not a gap-based column, so it owns its own bottom margin.
+.service-health-panel {
+  display: block;
+  margin-bottom: 2.4rem;
+}
+
+// ---- Meridian Phase 5: Pipeline section (request chain under the overview) ---
+// ---- Meridian Phase 3: Access section (scope matrix under the overview) ----
+.service-pipeline,
+.service-access {
+  margin-top: 3.2rem;
+  padding-top: 3.2rem;
+  border-top: 1px solid var(--df-border-2);
+
+  &__hint {
+    margin: 0 0 1.6rem;
+    max-width: 68ch;
+    color: var(--df-text-muted);
+    font-size: 1.3rem;
+    line-height: 1.5;
+  }
+}
+
+// ---- Departure type scale for in-form section headers ----
+.section-header h3,
+.basic-fields-section .section-title,
+.component-selection h3,
+.security-config-container .access-level-section h3 {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--df-text);
+}
+
+// ---- Stepper header: cleaned to a quiet tab bar ----
+:host ::ng-deep .mat-horizontal-stepper-header-container {
+  border-bottom: 1px solid var(--df-border-2);
+  margin-bottom: 8px;
+}
+:host ::ng-deep .mat-horizontal-stepper-header {
+  height: 48px;
+
+  .mat-step-label {
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--df-text-muted);
+  }
+  .mat-step-label-selected {
+    color: var(--df-text);
+  }
+  .mat-step-icon {
+    height: 22px;
+    width: 22px;
+    font-size: 1.1rem;
+    background-color: var(--df-surface-2);
+    color: var(--df-text-muted);
+    border: 1px solid var(--df-border);
+
+    .mat-icon {
+      font-size: 1.2rem;
+      height: auto;
+      width: auto;
+      line-height: 1;
+    }
+  }
+  .mat-step-icon-selected,
+  .mat-step-icon-state-edit {
+    background-color: var(--df-accent) !important;
+    color: var(--df-accent-contrast);
+    border-color: transparent;
+  }
+}
+:host ::ng-deep .mat-stepper-horizontal-line {
+  border-top-color: var(--df-border-2);
+}
+
+// ---- Service-type picker cards ----
+label.radio-card {
+  cursor: pointer;
+
+  .card-content-wrapper {
+    background: var(--df-surface);
+    border-radius: var(--df-radius-sm);
+    max-width: 200px;
+    min-height: 200px;
+    padding: 12px;
+    display: grid;
+    box-shadow: none;
+    border: 1px solid var(--df-border);
+    background-size: contain;
+    background-repeat: no-repeat;
+    transition: border-color 0.15s ease;
+
+    &.not-included {
+      opacity: 0.5;
+      cursor: default !important;
+      pointer-events: none !important;
+    }
+  }
+
+  .check-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    border: solid 2px var(--df-border);
+    background-color: var(--df-surface-2);
+    border-radius: 50%;
+    position: relative;
+
+    &:before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='12' height='9' viewBox='0 0 12 9' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0.93552 4.58423C0.890286 4.53718 0.854262 4.48209 0.829309 4.42179C0.779553 4.28741 0.779553 4.13965 0.829309 4.00527C0.853759 3.94471 0.889842 3.88952 0.93552 3.84283L1.68941 3.12018C1.73378 3.06821 1.7893 3.02692 1.85185 2.99939C1.91206 2.97215 1.97736 2.95796 2.04345 2.95774C2.11507 2.95635 2.18613 2.97056 2.2517 2.99939C2.31652 3.02822 2.3752 3.06922 2.42456 3.12018L4.69872 5.39851L9.58026 0.516971C9.62828 0.466328 9.68554 0.42533 9.74895 0.396182C9.81468 0.367844 9.88563 0.353653 9.95721 0.354531C10.0244 0.354903 10.0907 0.369582 10.1517 0.397592C10.2128 0.425602 10.2672 0.466298 10.3112 0.516971L11.0651 1.25003C11.1108 1.29672 11.1469 1.35191 11.1713 1.41247C11.2211 1.54686 11.2211 1.69461 11.1713 1.82899C11.1464 1.88929 11.1104 1.94439 11.0651 1.99143L5.06525 7.96007C5.02054 8.0122 4.96514 8.0541 4.90281 8.08294C4.76944 8.13802 4.61967 8.13802 4.4863 8.08294C4.42397 8.0541 4.36857 8.0122 4.32386 7.96007L0.93552 4.58423Z' fill='white'/%3E%3C/svg%3E%0A");
+      background-repeat: no-repeat;
+      background-size: 12px;
+      background-position: center center;
+      transform: scale(1.6);
+      opacity: 0;
+    }
+  }
+
+  input[type='radio'] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    &:checked {
+      + .card-content-wrapper {
+        border-color: var(--df-accent);
+        box-shadow: 0 0 0 1px var(--df-accent);
+        opacity: 1;
+
+        .check-icon {
+          transform: scale(1.2);
+          background-color: var(--df-accent);
+          border-color: var(--df-accent);
+          &:before {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+      }
+    }
+
+    &:focus {
+      + .card-content-wrapper {
+        .check-icon {
+          box-shadow: 0 0 0 4px var(--df-accent-soft);
+          border-color: var(--df-accent);
+        }
+      }
+    }
+  }
+
+  .card-content {
+    width: 100%;
+    text-align: center;
+    img {
+      margin-bottom: 10px;
+      width: 100%;
+      height: 110px;
+    }
+    h4 {
+      color: var(--df-text);
+    }
+  }
+}
+
+.details-section {
+  .section-header,
+  .action-container {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+}
+mat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendly-inline-widget {
+  height: 500px;
+}
+
+.unlock-btn {
+  position: relative;
+  top: -95px;
+  right: -55px;
+  color: var(--df-danger);
+}
+
+.action-bar {
+  display: flex;
+  justify-content: flex-end;
+
+  .button-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .secondary-btn {
+    background-color: transparent !important;
+    border: 1px solid var(--df-accent) !important;
+    color: var(--df-accent) !important;
+  }
+}
+
+::ng-deep .mat-expansion-panel-header > .mat-expansion-indicator::after {
+  color: unset !important;
+}
+::ng-deep .mat-mdc-select-arrow {
+  color: unset !important;
+}
+
+// Dark theme (keyed off body class): radio cards deliberately stay
+// black-with-white-border over the service-type artwork, so these values
+// are intentional, not theme surfaces.
+:host-context(.dark-theme) {
+  label.radio-card {
+    .card-content-wrapper {
+      background: #000;
+      border: 1px solid #fff;
+    }
+
+    .check-icon {
+      border: solid 2px #2d2d2d;
+    }
+
+    .card-content {
+      h4 {
+        color: #fff;
+      }
+    }
+  }
+
+  .details-section {
+    ::ng-deep .mat-button-toggle-group {
+      button {
+        background: inherit !important;
+
+        span {
+          color: var(--df-text) !important;
+        }
+      }
+    }
+  }
+}
+
+.security-config-container {
+  padding: 24px 0;
+
+  .top-hint {
+    margin-bottom: 24px;
+    padding: 12px 16px;
+    background: var(--df-accent-soft);
+    border-radius: var(--df-radius-sm);
+
+    p {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--df-text);
+    }
+
+    .role-link {
+      color: var(--df-accent);
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .security-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .security-option-card {
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.15s ease-in-out;
+    border-radius: var(--df-radius);
+    background: var(--df-surface);
+    border: 1px solid var(--df-border-2);
+    box-shadow: none;
+    overflow: hidden;
+    height: 100%;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+
+    &:hover {
+      border-color: var(--df-accent);
+    }
+
+    mat-card-content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+      height: 100%;
+      justify-content: center;
+    }
+
+    h4 {
+      margin: 0;
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--df-text);
+    }
+
+    p {
+      margin: 0;
+      color: var(--df-text-muted);
+      font-size: 1.35rem;
+      line-height: 1.5;
+    }
+
+    &.selected {
+      border-color: var(--df-accent);
+      background-color: var(--df-accent-soft);
+    }
+  }
+
+  .component-selection {
+    margin-top: 32px;
+
+    .search-field {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 24px;
+
+      .mat-mdc-form-field-wrapper {
+        padding-bottom: 0;
+      }
+    }
+
+    .components-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .component-card {
+      border: 1px solid var(--df-border-2);
+      border-radius: var(--df-radius-sm);
+      transition: border-color 0.15s ease-in-out;
+      cursor: pointer;
+      box-shadow: none;
+      background: var(--df-surface);
+
+      mat-card-content {
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .checkbox-wrapper {
+        margin-right: 8px;
+      }
+
+      &:hover {
+        border-color: var(--df-accent);
+      }
+
+      &.selected {
+        border-color: var(--df-accent);
+        background-color: var(--df-accent-soft);
+      }
+    }
+
+    .access-level-section {
+      margin-top: 32px;
+      padding: 24px;
+      background: var(--df-surface);
+      border-radius: var(--df-radius);
+      border: 1px solid var(--df-border-2);
+
+      .hint-widget {
+        margin: 0 0 24px 0;
+        padding: 12px 16px;
+        background: var(--df-accent-soft);
+        border-radius: var(--df-radius-sm);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        mat-icon {
+          color: var(--df-accent);
+          font-size: 20px;
+          width: 20px;
+          height: 20px;
+        }
+
+        p {
+          margin: 0;
+          font-size: 1.35rem;
+          color: var(--df-text);
+        }
+
+        .role-link {
+          color: var(--df-accent);
+          text-decoration: none;
+          font-weight: 500;
+          cursor: pointer;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+
+      .access-level-controls {
+        mat-button-toggle-group {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          border: none;
+          width: 100%;
+
+          @media (max-width: 768px) {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .mat-button-toggle {
+          background: var(--df-surface);
+          border: 1px solid var(--df-border-2);
+          border-radius: var(--df-radius-sm);
+          height: auto;
+          width: 100%;
+          transition: border-color 0.15s ease-in-out;
+
+          &:hover {
+            border-color: var(--df-accent);
+          }
+
+          .toggle-content {
+            padding: 16px;
+            text-align: center;
+
+            .toggle-text {
+              h4 {
+                margin: 0;
+                font-size: 1.5rem;
+                font-weight: 600;
+                letter-spacing: -0.01em;
+                color: var(--df-text);
+              }
+
+              p {
+                margin: 6px 0 0 0;
+                font-size: 1.3rem;
+                color: var(--df-text-muted);
+              }
+            }
+          }
+
+          &.mat-button-toggle-checked {
+            background: var(--df-accent-soft);
+            border-color: var(--df-accent);
+
+            .toggle-text {
+              h4 {
+                color: var(--df-accent);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.action-container {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--df-border-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  button {
+    min-width: 120px;
+  }
+}
+
+.component-selection {
+  .hint-widget {
+    margin: 0 0 24px 0;
+    padding: 12px 16px;
+    background: var(--df-accent-soft);
+    border-radius: var(--df-radius-sm);
+
+    p {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--df-text);
+    }
+
+    .role-link {
+      color: var(--df-accent);
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+.mcp-tools-container {
+  padding: 12px 0;
+
+  code {
+    font-size: 1.2rem;
+    padding: 3px 8px;
+    background: var(--df-accent-soft);
+    color: var(--df-accent-strong);
+    border-radius: 4px;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+}
+
+.mcp-service-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-col {
+  width: 60px;
+}
+
+.disabled-row {
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.65;
+  }
+}
+
+.mcp-services-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid var(--df-border-2);
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--df-text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  td {
+    font-size: 1.35rem;
+  }
+
+  tbody tr {
+    height: 44px;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: var(--df-hover);
+    }
+  }
+}
+
+.custom-tools-container {
+  padding: 12px 0;
+
+  .custom-tools-description {
+    color: var(--df-text-muted);
+    font-size: 1.35rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .custom-tools-actions {
+    margin-bottom: 16px;
+  }
+
+  .no-tools-message {
+    color: var(--df-text-faint);
+    font-style: italic;
+    padding: 24px 16px;
+    text-align: center;
+    border: 1px dashed var(--df-border);
+    border-radius: var(--df-radius-sm);
+    background: var(--df-surface-2);
+  }
+
+  code {
+    font-size: 1.2rem;
+    padding: 3px 8px;
+    background: var(--df-accent-soft);
+    color: var(--df-accent-strong);
+    border-radius: 4px;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .url-cell {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--df-text-muted);
+    font-size: 1.3rem;
+  }
+}
+
+.tool-type-toggle {
+  margin-bottom: 16px;
+
+  .mat-button-toggle {
+    min-width: 110px;
+  }
+}
+
+.custom-tool-form {
+  background: var(--df-surface-2);
+  border: 1px solid var(--df-border-2);
+  border-radius: var(--df-radius);
+  padding: 20px;
+  margin-bottom: 16px;
+
+  h4 {
+    margin: 0 0 16px;
+    font-weight: 600;
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+    color: var(--df-text);
+  }
+
+  .form-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .form-field-half {
+    flex: 1;
+  }
+
+  .form-field-quarter {
+    width: 160px;
+    flex-shrink: 0;
+  }
+
+  .form-field-third {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .scm-link-section {
+    margin-bottom: 16px;
+  }
+
+  .scm-actions {
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+
+  .parameters-section {
+    margin: 20px 0;
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+
+      h5 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--df-text-muted);
+      }
+    }
+
+    .parameter-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .parameter-card {
+      background: var(--df-surface);
+      border: 1px solid var(--df-border-2);
+      border-radius: var(--df-radius);
+      padding: 16px 20px 8px;
+      transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+      &:hover {
+        border-color: var(--df-border);
+      }
+
+      &:focus-within {
+        border-color: var(--df-accent);
+        box-shadow: 0 0 0 2px var(--df-accent-soft);
+      }
+    }
+
+    .parameter-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+
+      .parameter-index {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--df-accent-strong);
+        background: var(--df-accent-soft);
+        padding: 2px 8px;
+        border-radius: var(--df-radius-sm);
+        letter-spacing: 0.03em;
+      }
+
+      .parameter-remove-btn {
+        opacity: 0.4;
+        transition: opacity 0.15s ease;
+        transform: scale(0.85);
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+
+    .parameter-card-fields {
+      display: grid;
+      grid-template-columns: 1fr 120px 120px auto;
+      gap: 12px;
+      align-items: start;
+
+      .param-field {
+        min-width: 0;
+      }
+
+      .param-field--name {
+        grid-column: 1;
+      }
+
+      .param-field--type {
+        grid-column: 2;
+      }
+
+      .param-field--location {
+        grid-column: 3;
+      }
+
+      .param-field--required {
+        grid-column: 4;
+        padding-top: 12px;
+        white-space: nowrap;
+      }
+
+      .param-field--desc {
+        grid-column: 1 / -1;
+      }
+    }
+
+    .no-parameters-hint {
+      color: var(--df-text-faint);
+      font-size: 1.3rem;
+      text-align: center;
+      padding: 20px 16px;
+      margin: 0;
+      border: 1px dashed var(--df-border);
+      border-radius: var(--df-radius-sm);
+    }
+  }
+
+  .inline-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--df-border);
+    border-radius: var(--df-radius-sm);
+    font-size: 1.3rem;
+    background: var(--df-surface);
+    color: var(--df-text);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: var(--df-accent);
+      box-shadow: 0 0 0 2px var(--df-accent-soft);
+    }
+
+    &::placeholder {
+      color: var(--df-text-faint);
+    }
+  }
+
+  .inline-select {
+    padding: 6px 10px;
+    border: 1px solid var(--df-border);
+    border-radius: var(--df-radius-sm);
+    font-size: 1.3rem;
+    background: var(--df-surface);
+    color: var(--df-text);
+    cursor: pointer;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: var(--df-accent);
+      box-shadow: 0 0 0 2px var(--df-accent-soft);
+    }
+  }
+
+  .editor-section {
+    margin-bottom: 16px;
+
+    .editor-label {
+      display: block;
+      font-size: 1.3rem;
+      font-weight: 500;
+      color: var(--df-text-muted);
+      margin-bottom: 8px;
+    }
+
+    .editor-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+
+      .editor-label {
+        margin-bottom: 0;
+      }
+    }
+
+    .editor-wrapper {
+      border: 1px solid var(--df-border);
+      border-radius: var(--df-radius-sm);
+      overflow: hidden;
+      transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+      &:focus-within {
+        border-color: var(--df-accent);
+        box-shadow: 0 0 0 2px var(--df-accent-soft);
+      }
+
+      df-ace-editor {
+        display: block;
+        min-height: 200px;
+
+        ::ng-deep .editor {
+          min-height: 200px;
+          border-radius: var(--df-radius-sm);
+        }
+      }
+
+      &--compact df-ace-editor {
+        min-height: 100px;
+
+        ::ng-deep .editor {
+          min-height: 100px;
+        }
+      }
+    }
+
+    .editor-hint {
+      display: block;
+      font-size: 1.2rem;
+      color: var(--df-text-faint);
+      margin-top: 6px;
+      padding-left: 2px;
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--df-border-2);
+  }
+}
+
+.btn-icon {
+  margin-right: 6px;
+}
+
+.action-col {
+  width: 100px;
+  white-space: nowrap;
+  text-align: right;
+  padding-right: 4px !important;
+
+  .action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+
+    button {
+      opacity: 0.6;
+      transition: opacity 0.15s ease;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.basic-fields-section {
+  margin-bottom: 24px;
+}
+
+.advanced-section {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+// First-time user guidance
+.first-time-guidance {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  background: var(--df-accent-soft);
+  border-radius: var(--df-radius-sm);
+  border-left: 3px solid var(--df-accent);
+
+  .guidance-icon {
+    color: var(--df-accent);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .guidance-text {
+    margin: 0;
+    color: var(--df-text-2);
+    font-size: 1.35rem;
+    line-height: 1.5;
+    flex: 1;
+  }
+}
+
+// Meridian Phase 1: spacing under the Live API Card on the service Overview,
+// before the configuration form begins.
+.service-overview-card {
+  display: block;
+  margin-bottom: var(--df-space-5);
+}
+
+.curl-import-action {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+
+  fa-icon {
+    margin-right: 0.5rem;
+  }
+
+  &__hint {
+    font-size: 0.85rem;
+    opacity: 0.7;
+  }
+}

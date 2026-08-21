@@ -1,0 +1,201 @@
+@import '../adf-home.module.scss';
+
+.two-column-flex-container {
+  display: flex;
+  justify-content: stretch;
+  padding-bottom: 50px;
+
+  &.mobile {
+    flex-direction: column;
+
+    .flex-column:first-child {
+      padding-right: 0;
+      padding-bottom: 25px;
+    }
+
+    .flex-column:last-child {
+      padding: 0;
+    }
+  }
+}
+
+.flex-column {
+  flex-basis: 100%;
+
+  &:first-child {
+    padding-right: 0;
+  }
+
+  &:last-child {
+    padding-left: 0;
+  }
+}
+
+// Guidance line under the page title: says what this screen is for
+// (punch item 15 guidance layer). Muted, token-driven, all three themes.
+.home-intro {
+  color: var(--df-text-2);
+  font-size: 1.4rem;
+  line-height: 1.5;
+  margin: 0 0 20px;
+  max-width: 62ch;
+}
+
+.video-link {
+  position: relative;
+}
+
+.video-image {
+  max-width: 100%;
+}
+
+.video-overlay {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.play-icon {
+  margin-bottom: 15px;
+  margin-top: -90px;
+}
+
+#video-link-description {
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+mat-card.notice-card {
+  padding: 30px;
+  margin-bottom: 40px;
+  background-color: var(--df-surface);
+
+  p {
+    a {
+      color: var(--df-accent);
+    }
+  }
+}
+
+.pre-heading-icon {
+  margin-right: 10px;
+  color: var(--df-accent);
+}
+
+.release-container {
+  display: flex;
+  gap: 12px;
+}
+
+.release-card {
+  background-color: var(--df-surface);
+}
+
+.release-btn {
+  margin-left: 10px;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  df-generate-api-card {
+    width: 32%;
+    min-height: 180px;
+
+    @media (max-width: 959px) {
+      width: 48%;
+    }
+
+    @media (max-width: 600px) {
+      width: 100%;
+    }
+  }
+}
+
+// Brand-purple accent wash; adapts to both themes through the tokens.
+.ai-home-cta {
+  align-items: center;
+  background: var(--df-accent-soft);
+  border: 1px solid var(--df-border);
+  border-radius: var(--df-radius);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+}
+
+.ai-home-cta__icon {
+  align-items: center;
+  background: var(--df-accent);
+  border-radius: var(--df-radius-sm);
+  color: var(--df-accent-contrast);
+  display: flex;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.ai-home-cta__copy {
+  min-width: 0;
+
+  h3 {
+    color: var(--df-text);
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.25;
+    margin: 0 0 4px;
+  }
+
+  p {
+    color: var(--df-text-2);
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 0;
+  }
+}
+
+.ai-home-cta a {
+  border-radius: var(--df-radius-sm);
+  white-space: nowrap;
+}
+
+#learn-more-heading {
+  text-align: center;
+  margin: 0;
+}
+
+.learn-more-links-list {
+  display: flex;
+  justify-content: space-evenly;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dashboard-section {
+  margin-top: 48px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 760px) {
+  .ai-home-cta {
+    grid-template-columns: 42px minmax(0, 1fr);
+
+    a {
+      grid-column: 1 / -1;
+      justify-self: flex-start;
+    }
+  }
+}

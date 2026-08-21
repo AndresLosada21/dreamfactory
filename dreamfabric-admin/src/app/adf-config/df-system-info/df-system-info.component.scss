@@ -1,0 +1,79 @@
+.system-info-container {
+  // punch 13 (HOT): text and dividers were unthemed. In phosphor the body
+  // rendered near-black on the dark-green surface and the #000 dividers could
+  // not be repainted. Anchor text and every rule to tokens so all three
+  // themes stay legible by construction.
+  color: var(--df-text);
+  padding-bottom: 32px;
+
+  ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      line-height: 3rem;
+    }
+  }
+
+  h2 {
+    border-bottom: 1px solid var(--df-border);
+    padding-bottom: 10px;
+  }
+
+  .system-info-instance {
+    display: flex;
+    gap: 20px;
+    justify-content: space-between;
+    margin-bottom: 20px;
+
+    .system-info-packages {
+      padding-left: 20px;
+      border-left: 1px dashed var(--df-border);
+      max-width: 40%;
+      .package-header {
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+        border-bottom: 2px solid var(--df-border);
+        padding-bottom: 5px;
+        margin-bottom: 5px;
+      }
+      .overflow-scroll {
+        height: 300px;
+        overflow: auto;
+        // padding-right: 10px;
+      }
+      li {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding-bottom: 0.2rem;
+        border-bottom: 1px dotted var(--df-border-2);
+      }
+    }
+
+    &.x-small {
+      flex-direction: column;
+      gap: 10px;
+
+      .system-info-platform {
+        max-width: 100%;
+      }
+
+      .system-info-packages {
+        max-width: 100%;
+        padding-left: 0;
+        border-left: none;
+
+        ul {
+          padding: 10px 10px 0;
+        }
+      }
+    }
+  }
+
+  .system-info-server {
+    margin: 20px 0;
+  }
+}

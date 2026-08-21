@@ -1,0 +1,70 @@
+<p>
+  {{ 'roles.rolesOverview.description' | transloco }}
+</p>
+<df-alert
+  [showAlert]="showAlert"
+  [alertType]="alertType"
+  (alertClosed)="showAlert = false">
+  {{ alertMsg | transloco }}
+</df-alert>
+<form [formGroup]="roleForm" (ngSubmit)="onSubmit()" class="details-section">
+  <mat-form-field
+    appearance="outline"
+    subscriptSizing="dynamic"
+    class="dynamic-width">
+    <mat-label>{{ 'name' | transloco }}</mat-label>
+    <input matInput formControlName="name" required />
+    <mat-error *ngIf="roleForm.controls['name'].hasError('required')">
+      {{ 'roles.rolesOverview.error.name' | transloco }}
+    </mat-error>
+    <mat-error *ngIf="roleForm.controls['name'].hasError('server')">
+      {{ roleForm.controls['name'].getError('server') }}
+    </mat-error>
+    <mat-hint>{{ 'roles.rolesOverview.nameHint' | transloco }}</mat-hint>
+  </mat-form-field>
+  <mat-slide-toggle formControlName="active" class="dynamic-width">{{
+    'active' | transloco
+  }}</mat-slide-toggle>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ 'description' | transloco }}</mat-label>
+    <textarea rows="1" matInput formControlName="description"></textarea>
+  </mat-form-field>
+
+  <div formArrayName="serviceAccess" class="full-width">
+    <df-roles-access
+      [visible]="visibilityArray"
+      [formArray]="serviceAccess"
+      [roleForm]="roleForm"
+      class="full-width"></df-roles-access>
+  </div>
+
+  <p>
+    {{ 'roles.lookupKeys.description' | transloco }}
+  </p>
+
+  <df-lookup-keys
+    formArrayName="lookupKeys"
+    (lookupDeleted)="onLookupDeleted($event)"
+    class="full-width"></df-lookup-keys>
+
+  <div class="full-width action-bar">
+    <button class="cancel-btn" mat-flat-button type="button" (click)="goBack()">
+      {{ 'cancel' | transloco }}
+    </button>
+    <button
+      *ngIf="type === 'edit'"
+      mat-flat-button
+      type="button"
+      (click)="viewScope()">
+      {{ 'roles.roleScope.action' | transloco }}
+    </button>
+    <button class="save-btn" mat-flat-button color="primary">
+      <span *ngIf="type === 'create'">
+        {{ 'save' | transloco }}
+      </span>
+      <span *ngIf="type === 'edit'">
+        {{ 'update' | transloco }}
+      </span>
+    </button>
+  </div>
+</form>

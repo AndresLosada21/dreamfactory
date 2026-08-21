@@ -1,0 +1,96 @@
+import { inject } from '@angular/core';
+import { ActivatedRouteSnapshot, ResolveFn } from '@angular/router';
+import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
+import { emptyListWithError } from 'src/app/shared/utilities/app-error';
+import {
+  SERVICES_SERVICE_TOKEN,
+  SERVICE_TYPE_SERVICE_TOKEN,
+} from 'src/app/shared/constants/tokens';
+import { GenericListResponse, Meta } from 'src/app/shared/types/generic-http';
+import { Service, ServiceType } from 'src/app/shared/types/service';
+import { PLATFORM_SERVICES_FILTER } from 'src/app/shared/constants/services';
+
+export const servicesResolver =
+  (
+    limit?: number,
+    filter?: string
+  ): ResolveFn<{
+    resource: Array<Service>;
+    meta?: Meta;
+    serviceTypes?: Array<ServiceType>;
+  }> =>
+  (route: ActivatedRouteSnapshot) => {
+    const serviceTypeService = inject(SERVICE_TYPE_SERVICE_TOKEN);
+    const servicesService = inject(SERVICES_SERVICE_TOKEN);
+
+    const system: boolean =
+      route.data['system'] || route.parent?.data?.['system'] || false;
+    const groups: Array<string> =
+      route.data['groups'] || route.parent?.data?.['groups'];
+
+    if (groups) {
+      const filteredGroups = groups.map(grp =>
+        serviceTypeService.getAll<GenericListResponse<ServiceType>>({
+          fields: 'name',
+          additionalParams: [
+            {
+              key: 'group',
+              value: grp,
+            },
+          ],
+        })
+      );
+      return forkJoin(filteredGroups).pipe(
+        map(groups => groups.map(group => group.resource).flat()),
+        switchMap(serviceTypes => {
+          return servicesService
+            .getAll<GenericListResponse<Service>>({
+              limit,
+              sort: 'name',
+              filter: `${
+                system ? `${PLATFORM_SERVICES_FILTER} and ` : ''
+              }(type in ("${serviceTypes.map(src => src.name).join('","')}"))${
+                filter ? ` and ${filter}` : ''
+              }`,
+            })
+            .pipe(
+              map(services => ({
+                ...services,
+                serviceTypes,
+              }))
+            );
+        }),
+        // List resolver: complete navigation on failure so the table shell
+        // renders the error state with Retry.
+        catchError(err => of(emptyListWithError(err)))
+      );
+    }
+
+    return servicesService
+      .getAll<GenericListResponse<Service>>({
+        limit,
+        sort: 'name',
+        filter: `${
+          system ? PLATFORM_SERVICES_FILTER : ''
+        }${filter ? filter : ''}`,
+      })
+      .pipe(
+        map(services => ({ ...services })),
+        // List resolver: complete navigation on failure so the table shell
+        // renders the error state with Retry.
+        catchError(err => of(emptyListWithError(err)))
+      );
+  };
+
+export const serviceResolver: ResolveFn<Service | undefined> = (
+  route: ActivatedRouteSnapshot
+) => {
+  const servicesService = inject(SERVICES_SERVICE_TOKEN);
+  const id = route.paramMap.get('id');
+  if (!id) {
+    return;
+  }
+  return servicesService.get<Service>(id, {
+    related: 'service_doc_by_service_id',
+  });
+};

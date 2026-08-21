@@ -1,0 +1,238 @@
+// API Tester Component Styles
+mat-expansion-panel-header {
+  padding: 0 12px;
+}
+.api-tester-container {
+  // Local warning alias: no global --df-warning in light/dark yet, so consumers
+  // read var(--df-warning, var(--tester-warning)). Phosphor defines --df-warning
+  // and wins by construction. Dark override below.
+  --tester-warning: #9a5b00;
+  margin-top: 16px;
+}
+:host-context(.dark-theme) .api-tester-container {
+  --tester-warning: #ffb74d;
+}
+
+.description-text {
+  color: var(--df-text-2);
+  margin-bottom: 16px;
+}
+
+.test-controls {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 16px;
+  align-items: end;
+  margin: 16px 0;
+  justify-content: center;
+  align-items: baseline;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.endpoint-select,
+.api-key-select {
+  min-width: 150px;
+}
+
+.endpoint-option,
+.method-option,
+.auth-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.endpoint-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.method-badge {
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  min-width: 45px;
+  text-align: center;
+  // Neutral base for unknown methods.
+  background: var(--df-surface-2);
+  color: var(--df-text-2);
+
+  // HTTP method colors via category / status tokens (was literal swagger hex,
+  // which broke phosphor). GET = data blue, POST = success green, PUT = warning
+  // amber, PATCH = docs teal, DELETE = danger red. Soft-tint chips, AA in all
+  // three themes by construction. These badges can render inside the mat-select
+  // overlay (outside the container), so method-put carries a literal last-resort
+  // fallback for the pre-integration light/dark window.
+  &.method-get {
+    background: var(--df-tint-data-bg);
+    color: var(--df-tint-data-fg);
+  }
+  &.method-post {
+    background: var(--df-success-soft);
+    color: var(--df-success);
+  }
+  &.method-put {
+    background: color-mix(
+      in srgb,
+      var(--df-warning, var(--tester-warning, #c77700)) 14%,
+      transparent
+    );
+    color: var(--df-warning, var(--tester-warning, #c77700));
+  }
+  &.method-patch {
+    background: var(--df-tint-docs-bg);
+    color: var(--df-tint-docs-fg);
+  }
+  &.method-delete {
+    background: var(--df-danger-soft);
+    color: var(--df-danger);
+  }
+
+  &.large {
+    font-size: 12px;
+    padding: 4px 8px;
+    min-width: 50px;
+  }
+}
+
+.endpoint-path,
+.method-name,
+.auth-name {
+  font-weight: 500;
+  font-family: monospace;
+}
+
+.endpoint-title,
+.auth-desc {
+  font-size: 0.85em;
+  color: var(--df-text-2);
+}
+
+.test-button {
+  height: 56px;
+  min-width: 120px;
+
+  fa-icon,
+  mat-spinner {
+    margin-right: 8px;
+  }
+}
+
+.endpoint-info-card {
+  margin: 16px 0;
+  background: var(--df-surface);
+
+  .endpoint-info-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+
+    h4 {
+      margin: 0;
+      color: var(--df-text);
+    }
+  }
+
+  p {
+    margin: 0 0 12px 0;
+    color: var(--df-text-2);
+  }
+
+  .test-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
+    font-size: 0.9em;
+
+    span {
+      color: var(--df-text-2);
+
+      strong {
+        color: var(--df-text);
+      }
+    }
+  }
+}
+
+.test-result-card {
+  margin: 16px 0;
+
+  &.success-result {
+    border-left: 4px solid var(--df-success);
+    background: var(--df-success-soft);
+  }
+
+  &.error-result {
+    border-left: 4px solid var(--df-danger);
+    background: var(--df-danger-soft);
+  }
+
+  &.auth-error {
+    border-left: 4px solid var(--df-danger);
+    background: var(--df-danger-soft);
+  }
+
+  &.non-auth-error {
+    border-left: 4px solid var(--df-warning, var(--tester-warning));
+    background: color-mix(
+      in srgb,
+      var(--df-warning, var(--tester-warning)) 8%,
+      transparent
+    );
+  }
+
+  mat-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    mat-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      font-size: 1.1em;
+    }
+
+    .clear-result-btn {
+      opacity: 0.7;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+
+  .result-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+
+    span {
+      font-size: 0.95em;
+
+      strong {
+        color: var(--df-text);
+      }
+    }
+  }
+
+  .auth-hint {
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    background-color: var(--df-surface-2);
+    border-radius: var(--df-radius-sm);
+    border-left: 3px solid var(--df-border);
+    font-size: 0.9em;
+    color: var(--df-text-2);
+  }
+}

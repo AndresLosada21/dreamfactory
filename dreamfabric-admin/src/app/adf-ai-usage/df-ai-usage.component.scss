@@ -1,0 +1,568 @@
+// ============================================================
+// AI usage dashboard, stream 8 "departure" treatment.
+// Everything rides the global --df-* tokens (src/styles.scss) so
+// light, dark and phosphor all inherit the finish. Chart DATA
+// colors (series palettes, bar fills, sparklines) live in the
+// child chart components and are intentionally literal; all
+// chrome here is tokens.
+// ============================================================
+
+.usage {
+  // Warning accent: no global --df-warning token exists in light/dark yet,
+  // so alias it locally per theme. Phosphor defines --df-warning and stacks
+  // on .dark-theme, so it wins there by construction.
+  --usage-warning: #9a5b00;
+
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 24px 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    h2 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--df-text);
+    }
+
+    fa-icon {
+      color: var(--df-accent);
+      font-size: 1.8rem;
+    }
+
+    // Page identity icon: the AI-category tint chip (coordinated color -
+    // item 21). Higher specificity than the bare fa-icon rule above so the
+    // tint wins; the info-hint icon keeps its own !important overrides. In
+    // phosphor the AI tint is in-palette cyan, so this stays terminal-safe.
+    .usage__title-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--df-tint-ai-fg);
+      background: var(--df-tint-ai-bg);
+      padding: 6px 10px;
+      border-radius: var(--df-radius-sm);
+      font-size: 1.6rem;
+    }
+  }
+
+  &__title-hint {
+    font-size: 1.4rem !important;
+    color: var(--df-text-muted) !important;
+    cursor: help;
+
+    &:hover {
+      color: var(--df-accent) !important;
+    }
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__refresh {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 8px;
+  }
+
+  // Scope lens bar: the promoted single control that re-slices every chart.
+  // Reuses the time-range toggle pattern, so it inherits the themed
+  // mat-button-toggle finish; only layout lives here.
+  &__scope {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--df-surface-2);
+    border: 1px solid var(--df-border-2);
+    border-radius: var(--df-radius-sm);
+  }
+
+  &__scope-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--df-text-muted);
+    font-weight: 600;
+  }
+
+  &__scope-member {
+    min-width: 220px;
+
+    ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+  }
+
+  &__scope-hint {
+    font-size: 1.2rem;
+    color: var(--df-text-muted);
+    font-style: italic;
+    margin-left: auto;
+  }
+
+  &__loading {
+    padding: 48px;
+    display: flex;
+    justify-content: center;
+  }
+
+  &__error {
+    padding: 12px 16px;
+    border-radius: var(--df-radius-sm);
+    background: var(--df-danger-soft);
+    border: 1px solid var(--df-danger-border);
+    color: var(--df-danger);
+    font-size: 1.4rem;
+  }
+
+  &__empty {
+    text-align: center;
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    p {
+      margin: 0;
+      color: var(--df-text-2);
+      font-size: 1.4rem;
+      line-height: 1.6;
+    }
+    a {
+      color: var(--df-accent);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+  }
+
+  // Two-column grid for the cost-by-dimension charts. Wider min-width than
+  // the bars grid because a stacked area needs more horizontal room to
+  // read cleanly.
+  &__cost-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: 16px;
+  }
+
+  // Categorical spend breakdowns (share of the bill). Same responsive grid
+  // rhythm as the bars panels.
+  &__breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+  }
+
+  &__section-header--inset {
+    margin-top: 16px;
+    padding-top: 8px;
+    border-top: 1px solid var(--df-border-2);
+  }
+
+  // Filter card -------------------------------------------------------------
+
+  &__filters {
+    mat-card-content {
+      padding: 16px 20px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+  }
+
+  &__filters-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__filters-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--df-text-muted);
+    font-weight: 600;
+  }
+
+  &__filters-hint {
+    font-size: 1.2rem;
+    color: var(--df-text-muted);
+    font-style: italic;
+  }
+
+  &__filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  &__filter-field {
+    min-width: 180px;
+    flex: 1 1 180px;
+
+    ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+  }
+
+  &__filter-chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-top: 1px solid var(--df-border-2);
+    margin-top: 4px;
+    padding-top: 12px;
+  }
+
+  // Section headers ---------------------------------------------------------
+  // Used between major sections (DF AI usage / External MCP traffic) to give
+  // the dashboard visual rhythm without heavy dividers.
+
+  &__section-header {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--df-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__section-hint {
+    font-size: 1.3rem;
+    color: var(--df-text-muted);
+    cursor: help;
+
+    &:hover {
+      color: var(--df-accent);
+    }
+  }
+
+  &__section-subtitle {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--df-text-2);
+    line-height: 1.5;
+  }
+
+  &__section-disclaimer {
+    margin: 4px 0 0;
+    font-size: 1.3rem;
+    color: var(--df-text);
+    line-height: 1.5;
+    background: color-mix(
+      in srgb,
+      var(--df-warning, var(--usage-warning)) 8%,
+      transparent
+    );
+    border-left: 3px solid var(--df-warning, var(--usage-warning));
+    padding: 8px 12px;
+    border-radius: 0 var(--df-radius-sm) var(--df-radius-sm) 0;
+
+    strong {
+      color: var(--df-warning, var(--usage-warning));
+    }
+  }
+
+  // Budget banner + panel ----------------------------------------------------
+
+  &__budget-banner {
+    border-left: 4px solid var(--df-warning, var(--usage-warning));
+
+    mat-card-content {
+      padding: 14px 18px;
+    }
+  }
+
+  &__budget-banner-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--df-warning, var(--usage-warning));
+    font-size: 1.4rem;
+
+    fa-icon {
+      font-size: 1.5rem;
+    }
+  }
+
+  &__budget-banner-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 1.3rem;
+
+    li {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+  }
+
+  &__budget-banner-name {
+    font-weight: 600;
+    color: var(--df-text);
+  }
+
+  &__budget-banner-projection {
+    color: var(--df-text-2);
+
+    strong {
+      color: var(--df-warning, var(--usage-warning));
+      font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    }
+  }
+
+  &__budgets {
+    mat-card-content {
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+  }
+
+  &__budgets-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  &__budgets-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--df-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__budgets-period {
+    font-size: 1.2rem;
+    color: var(--df-text-muted);
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+
+  &__budgets-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  &__budgets-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__budgets-row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 1.4rem;
+  }
+
+  &__budgets-row-name {
+    font-weight: 500;
+    color: var(--df-text);
+  }
+
+  &__budgets-row-amount {
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size: 1.3rem;
+    color: var(--df-text-2);
+
+    strong {
+      color: var(--df-text);
+      font-weight: 600;
+    }
+  }
+
+  &__budgets-row-share {
+    color: var(--df-text-muted);
+  }
+
+  // Meter track: stays a rounded capsule on purpose; it is a progress bar,
+  // not product chrome.
+  &__budgets-row-bar {
+    position: relative;
+    height: 8px;
+    background: var(--df-surface-2);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  &__budgets-row-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: var(--df-success);
+    transition: width var(--df-duration-standard, 0.2s)
+      var(--df-ease-standard, ease-out);
+  }
+
+  &__budgets-row-projection {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: repeating-linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--df-success) 40%, transparent),
+      color-mix(in srgb, var(--df-success) 40%, transparent) 4px,
+      color-mix(in srgb, var(--df-success) 15%, transparent) 4px,
+      color-mix(in srgb, var(--df-success) 15%, transparent) 8px
+    );
+  }
+
+  // Budget health drives the meter color off tokens, so all three themes
+  // (incl. phosphor, where warning rides amber and danger rides red) stay
+  // legible. ok = success (default above); warning = amber; danger = red.
+  &__budgets-row[data-status='warning'] {
+    .usage__budgets-row-fill {
+      background: var(--df-warning);
+    }
+    .usage__budgets-row-amount strong {
+      color: var(--df-warning);
+    }
+    .usage__budgets-row-projection {
+      background: repeating-linear-gradient(
+        45deg,
+        color-mix(in srgb, var(--df-warning) 50%, transparent),
+        color-mix(in srgb, var(--df-warning) 50%, transparent) 4px,
+        color-mix(in srgb, var(--df-warning) 18%, transparent) 4px,
+        color-mix(in srgb, var(--df-warning) 18%, transparent) 8px
+      );
+    }
+  }
+
+  &__budgets-row[data-status='danger'] {
+    .usage__budgets-row-bar {
+      background: var(--df-danger-soft);
+    }
+    .usage__budgets-row-fill {
+      background: var(--df-danger);
+    }
+    .usage__budgets-row-amount strong {
+      color: var(--df-danger);
+    }
+    .usage__budgets-row-projection {
+      background: repeating-linear-gradient(
+        45deg,
+        color-mix(in srgb, var(--df-danger) 55%, transparent),
+        color-mix(in srgb, var(--df-danger) 55%, transparent) 4px,
+        color-mix(in srgb, var(--df-danger) 20%, transparent) 4px,
+        color-mix(in srgb, var(--df-danger) 20%, transparent) 8px
+      );
+    }
+  }
+
+  &__budgets-row-projection-label {
+    font-size: 11px;
+    color: var(--df-text-muted);
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+
+  // MCP summary tiles -------------------------------------------------------
+  // Tighter than the AI summary because the MCP section is secondary content.
+
+  &__mcp-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+  }
+
+  &__mcp-card mat-card-content {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  // Stat-tile label wears the AI-category tint (item 21: stat tiles in usage
+  // dashboards consume their category tint). Coordinated color per theme;
+  // the value below stays --df-text for legibility.
+  &__mcp-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--df-tint-ai-fg);
+    font-weight: 600;
+  }
+
+  &__mcp-value {
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: var(--df-text);
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    line-height: 1.2;
+
+    small {
+      font-size: 1.2rem;
+      font-weight: 500;
+      color: var(--df-text-muted);
+      margin-left: 4px;
+    }
+  }
+}
+
+// Dark: the warning alias needs a lighter amber to stay AA on dark surfaces.
+// Phosphor overrides via --df-warning, so this only feeds plain dark mode.
+:host-context(.dark-theme) .usage {
+  --usage-warning: #ffb74d;
+}

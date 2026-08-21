@@ -1,0 +1,16 @@
+.plain-icon-link {
+  color: var(--df-accent);
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  text-decoration: none;
+  padding: 5px 0px;
+
+  &:hover {
+    color: var(--df-accent-strong);
+  }
+}
+
+.link-icon {
+  margin-right: 10px;
+}

@@ -1,0 +1,79 @@
+/* Quickstart panel, stream 8 "departure": tokens only so all three
+   themes (light/dark/phosphor) come free. */
+
+mat-expansion-panel-header {
+  padding: 0 12px;
+}
+/* curl commands read as console panels: dark in every theme by design
+   (--df-code-bg/--df-code-text stay dark-on-light and dark-on-dark). */
+.curl-command-text {
+  white-space: pre;
+  font-family: monospace;
+  font-size: 1.25rem;
+  margin: 0;
+  padding: 10px 12px;
+  background-color: var(--df-code-bg);
+  color: var(--df-code-text);
+  border-radius: var(--df-radius-sm);
+  overflow-x: auto;
+}
+
+.curl-commands-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  .actions-container {
+    padding: 0px 8px;
+  }
+}
+
+.curl-command-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.curl-command-note {
+  color: var(--df-text-muted) !important;
+}
+
+.no-commands-container {
+  ul {
+    padding-left: 20px;
+    li {
+      margin-bottom: 10px;
+    }
+  }
+
+  /* Method chips: soft token washes instead of swagger's literal palette.
+     GET rides the accent, POST success, DELETE danger; PUT/PATCH stay
+     neutral (no amber token outside phosphor). */
+  span[class^='method-'] {
+    font-weight: 600;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: var(--df-radius-sm);
+    border: 1px solid var(--df-border);
+    background-color: var(--df-surface-2);
+    color: var(--df-text-2);
+  }
+
+  .method-get {
+    background-color: var(--df-accent-soft);
+    border-color: var(--df-accent);
+    color: var(--df-accent);
+  }
+  .method-post {
+    background-color: var(--df-success-soft);
+    border-color: var(--df-success-border);
+    color: var(--df-success);
+  }
+  .method-delete {
+    background-color: var(--df-danger-soft);
+    border-color: var(--df-danger-border);
+    color: var(--df-danger);
+  }
+}
+
+.themed-text {
+  color: var(--df-text);
+}

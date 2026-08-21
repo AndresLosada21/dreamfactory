@@ -1,0 +1,231 @@
+<div
+  class="app-container"
+  [class.small]="isSmallScreen | async"
+  [class.logged-in]="isLoggedIn$ | async">
+  <ng-container *ngIf="isLoggedIn$ | async">
+    <mat-toolbar class="tool-bar">
+      <div class="button-wrapper">
+        <button
+          mat-icon-button
+          (click)="sideNav.toggle()"
+          [attr.aria-label]="'toggleNav' | transloco"
+          class="toggle-icon">
+          <fa-icon [icon]="faBars" class="toggle-icon"></fa-icon>
+        </button>
+      </div>
+      <nav class="topbar-breadcrumbs" aria-label="Breadcrumb">
+        <ng-container *ngFor="let breadcrumb of breadCrumbs; index as i">
+          <ng-container *ngIf="breadcrumb.path; else currentTop">
+            <a [routerLink]="breadcrumb.path" class="breadcrumb-link">
+              <ng-component
+                *ngTemplateOutlet="topCrumbLabel"></ng-component> </a
+          ></ng-container>
+          <ng-template #currentTop>
+            <span class="breadcrumb-current">
+              <ng-component *ngTemplateOutlet="topCrumbLabel"></ng-component>
+            </span>
+          </ng-template>
+          <ng-template #topCrumbLabel>
+            <ng-container *ngIf="breadcrumb.translationKey; else topLabel">
+              <span>{{ breadcrumb.translationKey | transloco }}</span>
+            </ng-container>
+            <ng-template #topLabel>
+              <span>{{ breadcrumb.label }}</span>
+            </ng-template>
+          </ng-template>
+          <span class="breadcrumb-sep" *ngIf="i !== breadCrumbs.length - 1"
+            >/</span
+          >
+        </ng-container>
+      </nav>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        class="cmdk-btn"
+        (click)="handleSearchClick()"
+        aria-label="Search">
+        <fa-icon [icon]="faMagnifyingGlass" class="cmdk-icon"></fa-icon>
+        <span class="cmdk-label">Search</span>
+        <span class="cmdk-kbd">Ctrl K</span>
+      </button>
+      <ng-container *ngIf="availableLanguages.length > 1">
+        <button
+          mat-icon-button
+          [matMenuTriggerFor]="langMenu"
+          [attr.aria-label]="'language' | transloco">
+          <fa-icon [icon]="faLanguage"></fa-icon>
+        </button>
+        <mat-menu #langMenu="matMenu">
+          <button
+            mat-menu-item
+            *ngFor="let lang of availableLanguages"
+            (click)="handleLanguageChange(lang)">
+            {{ 'languages.' + lang | transloco }}
+          </button>
+        </mat-menu>
+      </ng-container>
+      <df-theme-toggle></df-theme-toggle>
+      <button mat-button [matMenuTriggerFor]="profileMenu" class="profile-icon">
+        <fa-icon [icon]="faUser"></fa-icon> {{ (userData$ | async)?.name }}
+      </button>
+      <mat-menu #profileMenu="matMenu">
+        <button mat-menu-item routerLink="profile">
+          {{ 'nav.profile.header' | transloco }}
+        </button>
+        <button mat-menu-item (click)="logout()">
+          {{ 'nav.logout.header' | transloco }}
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+    <div
+      class="license-expired"
+      *ngIf="
+        (licenseCheck$ | async)?.msg === 'Expired' ||
+        (licenseCheck$ | async)?.msg === 'Unknown'
+      ">
+      <span
+        >{{ 'licenseExpired.header' | transloco }}
+        {{ 'licenseExpired.subHeader' | transloco }}</span
+      >
+    </div>
+  </ng-container>
+  <mat-sidenav-container class="sidenav-container" autosize>
+    <mat-sidenav
+      #sideNav
+      [disableClose]="(isSmallScreen | async) === false"
+      [opened]="(isSmallScreen | async) === false"
+      class="sidenav"
+      [mode]="(isSmallScreen | async) ? 'over' : 'side'">
+      <ng-container *ngIf="(isLoggedIn$ | async) === false">
+        <div class="login-side-container">
+          <div class="image-container">
+            <div class="image-wrapper">
+              <img src="assets/img/Server-Stack.gif" alt="Self Hosted" />
+              <h3>Self Hosted</h3>
+            </div>
+            <div class="image-wrapper">
+              <img src="assets/img/API.gif" alt="API Generation" />
+              <h3>
+                Database & Network<br />
+                API Generation
+              </h3>
+            </div>
+            <div class="image-wrapper">
+              <img src="assets/img/Browser.gif" alt="Api Security" />
+              <h3>API Security</h3>
+            </div>
+            <div class="image-wrapper">
+              <img src="assets/img/Tools.gif" alt="API Scripting" />
+              <h3>API Scripting</h3>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+      <ng-container *ngIf="isLoggedIn$ | async">
+        <div class="shell-brand">
+          <a routerLink="/" class="shell-brand-link" aria-label="Home">
+            <img
+              class="shell-brand-logo"
+              src="assets/img/logo.png"
+              alt="DreamFactory" />
+          </a>
+        </div>
+        <mat-nav-list class="shell-nav">
+          <ng-container
+            *ngFor="let group of navGroups; trackBy: trackByGroupLabel">
+            <div class="shell-group-label" *ngIf="group.label">
+              {{ group.label | transloco }}
+            </div>
+            <ng-container
+              *ngTemplateOutlet="
+                navList;
+                context: { $implicit: group.items }
+              "></ng-container>
+          </ng-container>
+        </mat-nav-list>
+      </ng-container>
+    </mat-sidenav>
+    <mat-sidenav-content class="sidenav-content">
+      <div class="content-wrapper">
+        <ng-container *ngIf="isLoggedIn$ | async">
+          <div
+            class="banner"
+            *ngIf="(hasError$ | async) === false && currentCrumb">
+            <h1 class="page-header">
+              <ng-container *ngIf="pageLabelOverride; else crumbTitle">
+                {{ pageLabelOverride }}
+              </ng-container>
+              <ng-template #crumbTitle>
+                <ng-container
+                  *ngIf="currentCrumb!.translationKey; else pageTitleLabel">
+                  {{ currentCrumb!.translationKey | transloco }}
+                </ng-container>
+                <ng-template #pageTitleLabel>{{
+                  currentCrumb!.label
+                }}</ng-template>
+              </ng-template>
+            </h1>
+          </div>
+        </ng-container>
+        <div class="main" [class.no-error]="(hasError$ | async) === false">
+          <ng-content></ng-content>
+        </div>
+      </div>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+</div>
+
+<ng-template #navList let-items>
+  <ng-container *ngFor="let item of items; trackBy: trackByNavPath">
+    <div mat-list-item *ngIf="!item.subRoutes; else subRoutes">
+      <!--
+        Leaf nav items are <a routerLink> instead of <button (click)>.
+        This gives us proper browser affordances (middle-click / ctrl-click
+        to open in a new tab, URL preview on hover, copy link address,
+        screen reader "link" semantics) and a stable data-testid hook for
+        automation. handleNavClick() still fires on click to clear any
+        route-error banner; router navigation goes through [routerLink].
+      -->
+      <a
+        mat-flat-button
+        class="nav-item"
+        [routerLink]="navLink(item)"
+        [attr.data-testid]="navTestId(item.path)"
+        [class.active]="isActive(item)"
+        [class.commercial-feature]="isFeatureLocked(item.path, licenseType)"
+        [class.ai-nav-item]="item.path === '/ai'"
+        (click)="handleNavClick(item)">
+        <span class="nav-item">
+          <ng-container *ngIf="item?.icon">
+            <img [src]="item.icon" [alt]="item.path" />
+          </ng-container>
+          {{ navLabel(item.labelPath || item.path) | transloco }}
+        </span>
+      </a>
+    </div>
+    <ng-template #subRoutes>
+      <mat-expansion-panel
+        class="expansion-panel"
+        [class.mat-elevation-z0]="true"
+        [expanded]="isActive(item)">
+        <mat-expansion-panel-header
+          class="parent-route"
+          [attr.data-testid]="navGroupTestId(item.path)"
+          (click)="handleNavClick(item)">
+          <span class="nav-item">
+            <ng-container *ngIf="item?.icon">
+              <img [src]="item.icon" [alt]="item.path" /> </ng-container
+            >{{ navLabel(item.labelPath || item.path) | transloco }}
+          </span>
+        </mat-expansion-panel-header>
+        <mat-nav-list>
+          <ng-container
+            *ngTemplateOutlet="
+              navList;
+              context: { $implicit: item.subRoutes }
+            "></ng-container>
+        </mat-nav-list>
+      </mat-expansion-panel>
+    </ng-template>
+  </ng-container>
+</ng-template>

@@ -1,0 +1,14 @@
+<a [routerLink]="route" class="df-generate-api-card-link">
+  <mat-card
+    class="df-generate-api-card"
+    appearance="outlined"
+    [attr.data-category]="category">
+    <mat-card-content class="df-generate-api-card-content">
+      <fa-icon [icon]="icon" size="lg"></fa-icon>
+      <h4 class="df-card-header">
+        {{ headerText | transloco }}
+      </h4>
+      <span class="df-card-description">{{ text | transloco }}</span>
+    </mat-card-content>
+  </mat-card>
+</a>

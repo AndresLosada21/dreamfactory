@@ -1,0 +1,498 @@
+@use '@angular/material' as mat;
+@use 'src/theme' as theme;
+$red-palette: mat.define-palette(mat.$red-palette);
+
+// ============================================================
+// App shell, stream 8 "departure" direction.
+// Sidebar: always dark (var(--df-shell-*), theme-invariant).
+// Top bar + content canvas: follow the light/dark theme via
+// the global --df-* tokens. No hardcoded palette values here
+// except the logged-out marketing panel's brand navy.
+// ============================================================
+
+.app-container {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------------- Top bar ---------------- */
+
+.mat-toolbar.tool-bar {
+  background-color: var(--df-surface);
+  border-bottom: 1px solid var(--df-border-2);
+  padding: 0 12px 0 6px;
+  height: 52px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.3rem;
+
+  .button-wrapper {
+    display: flex;
+    align-items: center;
+  }
+
+  .toggle-icon {
+    color: var(--df-text-muted);
+    font-size: 1.4rem;
+  }
+}
+
+.topbar-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 1.3rem;
+
+  .breadcrumb-link {
+    color: var(--df-text-muted);
+    text-decoration: none;
+    border-radius: 4px;
+
+    &:hover {
+      color: var(--df-text);
+    }
+  }
+
+  .breadcrumb-current {
+    color: var(--df-text);
+    font-weight: 600;
+  }
+
+  .breadcrumb-sep {
+    color: var(--df-text-faint);
+    user-select: none;
+  }
+}
+
+// Command-palette-style search affordance (opens the existing search dialog).
+.cmdk-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  min-width: 200px;
+  padding: 0 10px;
+  border: 1px solid var(--df-border);
+  border-radius: var(--df-radius-sm);
+  background-color: var(--df-surface-2);
+  color: var(--df-text-muted) !important;
+  font-family: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--df-accent);
+    color: var(--df-text-2) !important;
+  }
+
+  .cmdk-icon {
+    font-size: 1.2rem;
+  }
+
+  .cmdk-label {
+    flex: 1 1 auto;
+    text-align: left;
+  }
+
+  .cmdk-kbd {
+    font-size: 1rem;
+    line-height: 1;
+    padding: 3px 5px;
+    border: 1px solid var(--df-border);
+    border-radius: 4px;
+    background-color: var(--df-surface);
+    color: var(--df-text-faint) !important;
+    letter-spacing: 0.03em;
+  }
+}
+
+.profile-icon {
+  color: var(--df-text-2);
+}
+
+.app-container.small {
+  .mat-toolbar {
+    gap: 6px;
+    height: 52px;
+    min-height: 52px;
+    overflow: hidden;
+    padding: 0 8px;
+
+    .button-wrapper {
+      min-width: 0;
+    }
+
+    .topbar-breadcrumbs {
+      display: none;
+    }
+
+    .cmdk-btn {
+      min-width: 0;
+
+      .cmdk-label,
+      .cmdk-kbd {
+        display: none;
+      }
+    }
+
+    .spacer {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .profile-icon {
+      flex: 0 0 40px;
+      min-width: 40px;
+      overflow: hidden;
+      padding: 0 8px;
+
+      ::ng-deep .mdc-button__label {
+        align-items: center;
+        display: flex;
+        overflow: hidden;
+        width: 20px;
+      }
+    }
+  }
+}
+
+/* ---------------- Sidebar ---------------- */
+
+.sidenav-container {
+  background-color: var(--df-bg);
+  flex: 1 1 auto;
+
+  .sidenav {
+    // Logged-out marketing panel keeps the brand navy.
+    background-color: #0f0761;
+    min-width: 40%;
+    border: none;
+    border-right: 1px solid var(--df-shell-border);
+    transition: min-width 0.2s ease-out;
+    max-width: 450px;
+
+    .login-side-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+      .image-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        text-align: center;
+        gap: 8px;
+        width: 100%;
+        .image-wrapper {
+          width: calc(40% - 8px);
+          padding: 10px;
+
+          img {
+            width: 60%;
+            height: auto;
+          }
+
+          h3 {
+            color: #fff;
+          }
+        }
+      }
+    }
+
+    .small & {
+      min-width: 0;
+    }
+    // Logged-in shell: slim, always dark, fixed width.
+    .logged-in & {
+      background-color: var(--df-shell-bg);
+      width: 248px;
+      min-width: 248px;
+      max-width: 248px;
+    }
+    .logged-in.small & {
+      width: 272px;
+      min-width: 272px;
+      max-width: 272px;
+    }
+
+    .shell-brand {
+      display: flex;
+      align-items: center;
+      height: 52px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--df-shell-border);
+
+      .shell-brand-link {
+        display: flex;
+        align-items: center;
+      }
+
+      .shell-brand-logo {
+        height: 20px;
+        width: auto;
+        display: block;
+      }
+
+      // Wordmark goes 16-bit green in phosphor (item 18): tint to the
+      // phosphor glyph color and render chunky. Reduced height + pixelated
+      // upscale gives the raster wordmark hard pixel edges.
+      :host-context(.phosphor-theme) & .shell-brand-logo {
+        height: 13px;
+        filter: brightness(0) invert(1) sepia(1) saturate(4) hue-rotate(70deg)
+          brightness(1.1);
+        image-rendering: pixelated;
+        transform: scale(1.5);
+        transform-origin: left center;
+      }
+    }
+
+    .shell-nav {
+      padding: 8px 0 16px;
+    }
+
+    .shell-group-label {
+      padding: 18px 18px 6px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--df-shell-text-muted);
+      user-select: none;
+    }
+
+    .parent-route {
+      font-size: 1.35rem;
+      font-weight: 500;
+      height: 36px;
+      margin: 1px 10px;
+      padding: 0 8px;
+      gap: 4px;
+      border-radius: var(--df-radius-sm);
+      background: transparent !important;
+      color: var(--df-shell-text-2);
+
+      &:hover {
+        background: var(--df-shell-hover) !important;
+      }
+    }
+
+    .expansion-panel,
+    ::ng-deep .mat-expansion-panel {
+      background: transparent !important;
+      color: var(--df-shell-text-2);
+    }
+
+    // Tree line for nested items, Linear-style.
+    ::ng-deep .mat-expansion-panel-body {
+      padding: 2px 0 4px 10px !important;
+      margin-left: 20px;
+      border-left: 1px solid var(--df-shell-border);
+      background: transparent !important;
+    }
+
+    ::ng-deep .mat-expansion-indicator::after {
+      color: var(--df-shell-text-muted);
+    }
+
+    .nav-item {
+      height: 34px;
+      width: 100%;
+      font-size: 1.35rem;
+      font-weight: 500;
+      border-radius: var(--df-radius-sm);
+      justify-content: flex-start;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--df-shell-text-2) !important;
+      letter-spacing: 0;
+
+      img {
+        width: 17px;
+        height: 17px;
+        // Icon artwork follows the shell: dark glyphs on the light rail,
+        // crisp white on the dark rail, phosphor green in phosphor.
+        filter: brightness(0);
+        opacity: 0.72;
+      }
+      :host-context(.dark-theme) & img {
+        filter: brightness(0) invert(1);
+      }
+      :host-context(.phosphor-theme) & img {
+        filter: brightness(0) invert(1) sepia(1) saturate(4) hue-rotate(70deg)
+          brightness(1.1);
+        // 16-bit pixel icons (item 18): paint the source small, then
+        // nearest-neighbor upscale so the glyph reads as chunky green
+        // pixels. Reduced-size-scaled-up is what forces even vector art to
+        // rasterize coarse; image-rendering keeps the upscale hard-edged.
+        // Phosphor-only, so the slight box change never touches other themes.
+        width: 10px;
+        height: 10px;
+        image-rendering: pixelated;
+        transform: scale(1.6);
+        transform-origin: center;
+      }
+
+      ::ng-deep .mat-mdc-button-touch-target {
+        background-color: transparent;
+      }
+    }
+
+    a.nav-item {
+      background-color: transparent;
+      margin: 1px 10px;
+      width: calc(100% - 20px);
+      padding: 0 8px;
+
+      &:hover {
+        background-color: var(--df-shell-hover);
+      }
+
+      &.active {
+        background-color: var(--df-shell-active-bg) !important;
+        color: var(--df-shell-text) !important;
+        box-shadow: inset 2px 0 0 var(--df-shell-accent);
+
+        img {
+          opacity: 1;
+        }
+
+        ::ng-deep .mat-mdc-button-touch-target {
+          background-color: transparent !important;
+        }
+      }
+
+      &.commercial-feature {
+        opacity: 0.7;
+        position: relative;
+
+        &::after {
+          content: '';
+          background-image: url('~src/assets/img/lock-icon.svg');
+          background-size: contain;
+          background-repeat: no-repeat;
+          filter: brightness(0);
+          :host-context(.dark-theme) & {
+            filter: brightness(0) invert(1);
+          }
+          width: 13px;
+          height: 13px;
+          position: absolute;
+          right: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          opacity: 0.55;
+        }
+
+        &:hover {
+          opacity: 1;
+
+          &::after {
+            opacity: 0.8;
+          }
+        }
+      }
+    }
+  }
+
+  /* ---------------- Content canvas ---------------- */
+
+  .sidenav-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+    background: var(--df-bg);
+
+    .content-wrapper {
+      height: 100%;
+      // Include the 20/28px padding in the 100% height so the content pane
+      // does not overflow its scroll container (was pushing every page ~48px
+      // past the fold, clipping the bottom row).
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 28px 28px;
+      background-color: transparent;
+      border: none;
+    }
+
+    .banner {
+      flex-shrink: 0;
+      width: 100%;
+      padding: 2px 2px 16px;
+      background-color: transparent;
+
+      .page-header {
+        margin: 0;
+        padding: 0;
+        font-size: 2.2rem;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        color: var(--df-text);
+      }
+    }
+
+    .main {
+      flex-grow: 1;
+
+      &.no-error {
+        .logged-in & {
+          margin-top: 0;
+          padding: 20px 24px;
+          background-color: var(--df-surface);
+          border: 1px solid var(--df-border-2);
+          border-radius: var(--df-radius);
+        }
+        .logged-in.small & {
+          margin: 0;
+          padding: 16px;
+        }
+      }
+    }
+  }
+}
+
+.small {
+  ::ng-deep {
+    .mat-expansion-panel-header {
+      padding: 0 8px;
+    }
+  }
+}
+
+::ng-deep {
+  .mat-expansion-panel-body {
+    overflow-x: auto;
+  }
+}
+
+.license-expired {
+  display: flex;
+  flex-direction: column;
+  background-color: mat.get-color-from-palette($red-palette, 600);
+  color: white;
+  border-radius: 0;
+  justify-content: center;
+  align-items: center;
+  font-size: 16px;
+  padding: 16px;
+}
+
+.breadcrumb-link {
+  color: inherit;
+  text-decoration: none;
+}

@@ -1,0 +1,2344 @@
+import { NgFor, NgIf, NgTemplateOutlet } from '@angular/common';
+import {
+  Component,
+  ElementRef,
+  Inject,
+  Input,
+  OnInit,
+  TemplateRef,
+  ViewChild,
+} from '@angular/core';
+import {
+  FormArray,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTabsModule } from '@angular/material/tabs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { TranslocoPipe } from '@ngneat/transloco';
+import { DfArrayFieldComponent } from 'src/app/shared/components/df-field-array/df-array-field.component';
+import { DfDynamicFieldComponent } from 'src/app/shared/components/df-dynamic-field/df-dynamic-field.component';
+import { DfRoleScopeComponent } from 'src/app/shared/components/df-role-scope/df-role-scope.component';
+import { DfAiChatPrereqsComponent } from 'src/app/adf-ai-chat/components/df-ai-chat-prereqs/df-ai-chat-prereqs.component';
+import { DfAiTestConnectionComponent } from 'src/app/shared/components/df-ai-test-connection/df-ai-test-connection.component';
+import { DfAiModelPickerComponent } from 'src/app/shared/components/df-ai-model-picker/df-ai-model-picker.component';
+import { DfAiAllowedRolesComponent } from 'src/app/shared/components/df-ai-allowed-roles/df-ai-allowed-roles.component';
+import { DfAiMcpServersComponent } from 'src/app/shared/components/df-ai-mcp-servers/df-ai-mcp-servers.component';
+import { DfAiDataServicesComponent } from 'src/app/shared/components/df-ai-data-services/df-ai-data-services.component';
+import { DfAceEditorComponent } from 'src/app/shared/components/df-ace-editor/df-ace-editor.component';
+import { DfSecurityConfigComponent } from 'src/app/shared/components/df-security-config/df-security-config.component';
+
+import { ConfigSchema, ServiceType } from 'src/app/shared/types/service';
+import {
+  camelToSnakeString,
+  snakeToCamelString,
+} from 'src/app/shared/utilities/case';
+import {
+  faCircleInfo,
+  faPenToSquare,
+  faTrashCan,
+  faPlus,
+  faFileImport,
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatButtonModule } from '@angular/material/button';
+import { UntilDestroy } from '@ngneat/until-destroy';
+import {
+  CACHE_SERVICE_TOKEN,
+  SERVICES_SERVICE_TOKEN,
+} from 'src/app/shared/constants/tokens';
+import { DfBaseCrudService } from 'src/app/shared/services/df-base-crud.service';
+import { Service } from 'src/app/shared/types/files';
+import { AceEditorMode } from 'src/app/shared/types/scripts';
+import { DfScriptEditorComponent } from 'src/app/shared/components/df-script-editor/df-script-editor.component';
+import { DfFileGithubComponent } from 'src/app/shared/components/df-file-github/df-file-github.component';
+import { DfSystemConfigDataService } from 'src/app/shared/services/df-system-config-data.service';
+import {
+  map,
+  switchMap,
+  catchError,
+  mergeMap,
+  of,
+  throwError,
+  tap,
+} from 'rxjs';
+import { normalizeError } from 'src/app/shared/utilities/app-error';
+import { silent, toastOff } from 'src/app/shared/utilities/http-contexts';
+import {
+  GOLD_SERVICES,
+  SILVER_SERVICES,
+} from 'src/app/shared/constants/services';
+import { DfPaywallComponent } from 'src/app/shared/components/df-paywall/df-paywall.component';
+import { CommonModule } from '@angular/common';
+import { MatIconModule } from '@angular/material/icon';
+import { HttpClient } from '@angular/common/http';
+import {
+  MatDialog,
+  MatDialogModule,
+  MatDialogRef,
+} from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { DfThemeService } from 'src/app/shared/services/df-theme.service';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { readAsText } from '../../shared/utilities/file';
+import { DfSnackbarService } from 'src/app/shared/services/df-snackbar.service';
+import { BASE_URL } from 'src/app/shared/constants/urls';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { DfCurrentServiceService } from 'src/app/shared/services/df-current-service.service';
+import {
+  MatStep,
+  MatStepper,
+  MatStepperModule,
+} from '@angular/material/stepper';
+import { MatRadioModule } from '@angular/material/radio';
+import { MatCardModule } from '@angular/material/card';
+import { TitleCasePipe } from '@angular/common';
+import { MatDividerModule } from '@angular/material/divider';
+import { DfSystemService } from 'src/app/shared/services/df-system.service';
+import { DfPaywallModal } from 'src/app/shared/components/df-paywall-modal/df-paywall-modal.component';
+import { DfAnalyticsService } from 'src/app/shared/services/df-analytics.service';
+import { DfArtifactResolverService } from 'src/app/shared/services/df-artifact-resolver.service';
+import { DfPageHeaderComponent } from 'src/app/shared/components/df-page-header/df-page-header.component';
+import {
+  DfArtifactCardComponent,
+  ArtifactKeyOption,
+} from 'src/app/shared/components/df-artifact-card/df-artifact-card.component';
+import { DfScopeMatrixComponent } from 'src/app/shared/components/df-scope-matrix/df-scope-matrix.component';
+import { DfServiceHealthPanelComponent } from '../df-service-health-panel/df-service-health-panel.component';
+import { DfPipelineStripComponent } from 'src/app/shared/components/df-pipeline-strip/df-pipeline-strip.component';
+import { ScopeVerb } from 'src/app/shared/services/df-scope.service';
+import { DfServiceRoleScopeDialogComponent } from './df-service-role-scope-dialog.component';
+import { DfCurlImportDialogComponent } from 'src/app/shared/components/df-curl-import-dialog/df-curl-import-dialog.component';
+import { ParsedCurl } from 'src/app/shared/utilities/curl-parser';
+
+type UnsavedToolChoice = 'save' | 'discard' | 'cancel';
+
+// Add these interfaces at the bottom of the file with the other interfaces
+interface RoleResponse {
+  resource: Array<{
+    id: number;
+    name: string;
+    [key: string]: any;
+  }>;
+}
+
+interface AppResponse {
+  resource: Array<{
+    id: number;
+    name: string;
+    api_key: string;
+    [key: string]: any;
+  }>;
+}
+
+interface ServiceResponse {
+  resource: Array<{
+    id: number;
+    name: string;
+    [key: string]: any;
+  }>;
+}
+
+@UntilDestroy({ checkProperties: true })
+@Component({
+  selector: 'df-service-details',
+  templateUrl: './df-service-details.component.html',
+  styleUrls: ['./df-service-details.component.scss'],
+  standalone: true,
+  imports: [
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    NgFor,
+    MatSlideToggleModule,
+    MatTabsModule,
+    MatExpansionModule,
+    TranslocoPipe,
+    ReactiveFormsModule,
+    FormsModule,
+    NgIf,
+    MatCheckboxModule,
+    NgTemplateOutlet,
+    DfDynamicFieldComponent,
+    DfRoleScopeComponent,
+    DfAiChatPrereqsComponent,
+    DfAiTestConnectionComponent,
+    DfAiModelPickerComponent,
+    DfAiAllowedRolesComponent,
+    DfAiMcpServersComponent,
+    DfAiDataServicesComponent,
+    DfArrayFieldComponent,
+    DfAceEditorComponent,
+    FontAwesomeModule,
+    MatTooltipModule,
+    MatButtonModule,
+    DfScriptEditorComponent,
+    DfFileGithubComponent,
+    DfPaywallComponent,
+    MatStepperModule,
+    CommonModule,
+    MatIconModule,
+    MatButtonToggleModule,
+    MatRadioModule,
+    MatCardModule,
+    TitleCasePipe,
+    MatDividerModule,
+    DfSecurityConfigComponent,
+    MatMenuModule,
+    MatDialogModule,
+    DfPageHeaderComponent,
+    DfArtifactCardComponent,
+    DfScopeMatrixComponent,
+    DfPipelineStripComponent,
+    DfServiceHealthPanelComponent,
+  ],
+})
+export class DfServiceDetailsComponent implements OnInit {
+  edit = false;
+  isDatabase = false;
+  /** DreamFactory Platform APIs route (data.system). Those services are not
+   * role-governed the way a user service is, so they are not health-scored. */
+  isPlatformService = false;
+  /** Route group ('Database', 'File', 'Script', ...). Selects the health
+   * panel's connection-probe endpoint. */
+  serviceGroup: string | null = null;
+  isNetworkService = false;
+  isScriptService = false;
+  isFile = false;
+  isAuth = false;
+  isMcp = false;
+  serviceTypes: Array<ServiceType>;
+  notIncludedServices: Array<ServiceType>;
+  serviceForm: FormGroup;
+  faCircleInfo = faCircleInfo;
+  faPenToSquare = faPenToSquare;
+  faTrashCan = faTrashCan;
+  faPlus = faPlus;
+  faFileImport = faFileImport;
+  serviceData: Service;
+  selectedServiceTypeLable: string;
+  configSchema: Array<ConfigSchema>;
+  images: Array<ImageObject>;
+  search = '';
+  serviceDefinition: string;
+  serviceDefinitionType: string;
+  systemEvents: Array<{ label: string; value: string }>;
+  content = '';
+  @ViewChild('stepper') stepper!: MatStepper;
+  showSecurityConfig = false;
+  currentServiceId: number | null = null;
+  isFirstTimeUser = false;
+
+  // Meridian Phase 1: the Live API Card (df-artifact-card) on the service
+  // Overview. Populated only when viewing an existing database service, whose
+  // API exposes /_table/ endpoints the sample curl can hit.
+  artifactKeys: ArtifactKeyOption[] = [];
+  artifactSampleTable = 'your_table';
+  availableFileServices: any[] = [];
+  mcpServices: {
+    name: string;
+    label: string;
+    type: string;
+    category: string;
+    tools: { name: string; title: string; description: string }[];
+    expanded: boolean;
+  }[] = [];
+  mcpServicesLoaded = false;
+  disabledTools = new Set<string>();
+  mcpGlobalTools: { name: string; title: string; description: string }[] = [
+    {
+      name: 'list_apis',
+      title: 'List Available APIs',
+      description: 'List all available database APIs and their tool prefixes',
+    },
+    {
+      name: 'all_get_tables',
+      title: 'Get Tables from All Databases',
+      description:
+        'Retrieve tables from all connected database services in one call',
+    },
+    {
+      name: 'all_find_table',
+      title: 'Find Table Across Databases',
+      description: 'Search for a table by name across all connected databases',
+    },
+    {
+      name: 'all_get_stored_procedures',
+      title: 'Get Stored Procedures from All',
+      description: 'Retrieve stored procedures from all connected databases',
+    },
+    {
+      name: 'all_get_stored_functions',
+      title: 'Get Stored Functions from All',
+      description: 'Retrieve stored functions from all connected databases',
+    },
+    {
+      name: 'all_get_resources',
+      title: 'Get Resources from All',
+      description:
+        'Retrieve all available resources from all connected databases',
+    },
+    {
+      name: 'all_list_files',
+      title: 'List Files from All Storage',
+      description: 'List files from all connected file storage services',
+    },
+    {
+      name: 'search',
+      title: 'Search (stub)',
+      description: 'Stub search implementation for connectors that require it',
+    },
+    {
+      name: 'fetch',
+      title: 'Fetch (stub)',
+      description: 'Stub fetch implementation for connectors that require it',
+    },
+  ];
+  customTools: any[] = [];
+  editingToolIndex: number | null = null;
+  customToolForm!: FormGroup;
+  availableLookups: Array<{ name: string }> = [];
+  availableScmServices: Array<{
+    id: number;
+    name: string;
+    label: string;
+    type: string;
+  }> = [];
+  @ViewChild('functionEditor') functionEditor: DfAceEditorComponent;
+  @ViewChild('headersEditor') headersEditor: DfAceEditorComponent;
+  @ViewChild('unsavedToolDialog')
+  unsavedToolDialogTpl!: TemplateRef<unknown>;
+  private unsavedToolDialogRef: MatDialogRef<
+    unknown,
+    UnsavedToolChoice
+  > | null = null;
+  private liveHeadersValue: string | null = null;
+  private liveFunctionValue: string | null = null;
+
+  constructor(
+    private activatedRoute: ActivatedRoute,
+    private fb: FormBuilder,
+    @Inject(SERVICES_SERVICE_TOKEN) private servicesService: DfBaseCrudService,
+    @Inject(CACHE_SERVICE_TOKEN) private cacheService: DfBaseCrudService,
+    private router: Router,
+    private systemConfigDataService: DfSystemConfigDataService,
+    private http: HttpClient,
+    public dialog: MatDialog,
+    private themeService: DfThemeService,
+    private snackbarService: DfSnackbarService,
+    private currentServiceService: DfCurrentServiceService,
+    private snackBar: MatSnackBar,
+    private systemService: DfSystemService,
+    private analyticsService: DfAnalyticsService,
+    private artifactResolver: DfArtifactResolverService
+  ) {
+    this.serviceForm = this.fb.group({
+      type: ['', Validators.required],
+      name: ['', Validators.required],
+      label: [''],
+      description: [''],
+      isActive: [true],
+      storageServiceId: [null], // Add storage service ID field for Excel services
+      config: this.fb.group({}),
+      service_doc_by_service_id: this.fb.group({
+        format: [0],
+        content: [''],
+      }),
+    });
+    this.customToolForm = this.fb.group({
+      toolType: ['api'],
+      name: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9_]+$/)]],
+      description: ['', Validators.required],
+      httpMethod: ['GET'],
+      url: ['', Validators.required],
+      parameters: this.fb.array([]),
+      headers: ['{}'],
+      function: [''],
+      enabled: [true],
+      storageServiceId: [null],
+      scmRepository: [''],
+      scmReference: [''],
+      storagePath: [''],
+    });
+    this.customToolForm
+      .get('toolType')!
+      .valueChanges.subscribe((type: string) => {
+        const urlCtrl = this.customToolForm.get('url')!;
+        const functionCtrl = this.customToolForm.get('function')!;
+        if (type === 'function') {
+          urlCtrl.clearValidators();
+          // Function body is not required when linked to an SCM service
+          const hasScm = !!this.customToolForm.get('storageServiceId')?.value;
+          functionCtrl.setValidators(hasScm ? [] : [Validators.required]);
+        } else {
+          urlCtrl.setValidators(Validators.required);
+          functionCtrl.clearValidators();
+        }
+        urlCtrl.updateValueAndValidity();
+        functionCtrl.updateValueAndValidity();
+      });
+    // When storageServiceId changes, update function validation
+    this.customToolForm
+      .get('storageServiceId')!
+      .valueChanges.subscribe((serviceId: any) => {
+        const functionCtrl = this.customToolForm.get('function')!;
+        const toolType = this.customToolForm.get('toolType')?.value;
+        if (toolType === 'function') {
+          functionCtrl.setValidators(serviceId ? [] : [Validators.required]);
+          functionCtrl.updateValueAndValidity();
+        }
+      });
+    const id = this.activatedRoute.snapshot.paramMap.get('id');
+    if (id) {
+      this.edit = true;
+    }
+  }
+  isDarkMode = this.themeService.darkMode$;
+  ngOnInit(): void {
+    // Check if this is the user's first API (only for new service creation, not editing)
+    if (!this.edit) {
+      this.analyticsService.getDashboardStats().subscribe(stats => {
+        this.isFirstTimeUser = stats.services.total === 0;
+      });
+    }
+
+    this.http
+      .get<Array<ImageObject>>('assets/img/databaseImages.json')
+      .subscribe(images => {
+        this.images = images;
+      });
+    this.http
+      .get<any>(`${BASE_URL}/system/lookup`, {
+        params: { fields: 'name', limit: '100' },
+      })
+      .subscribe(res => {
+        this.availableLookups = res?.resource ?? [];
+      });
+    this.systemConfigDataService.environment$
+      .pipe(
+        switchMap(env =>
+          this.activatedRoute.data.pipe(map(route => ({ env, route })))
+        )
+      )
+      .subscribe(({ env, route }) => {
+        if (route['groups'] && route['groups'][0] === 'Database') {
+          this.isDatabase = true;
+        }
+        if (route['groups'] && route['groups'][0] === 'Remote Service') {
+          this.isNetworkService = true;
+        }
+        if (route['groups'] && route['groups'][0] === 'Script') {
+          this.isScriptService = true;
+        }
+        if (route['groups'] && route['groups'][0] === 'File') {
+          this.isFile = true;
+        }
+        if (route['groups'] && route['groups'][0] === 'LDAP') {
+          this.isAuth = true;
+        }
+        if (route['groups'] && route['groups'][0] === 'MCP') {
+          this.isMcp = true;
+        }
+        this.serviceGroup = route['groups']?.[0] ?? null;
+        // Set on the DF_PLATFORM_APIS route (and inherited by its children).
+        this.isPlatformService =
+          route['system'] ||
+          this.activatedRoute.snapshot.parent?.data?.['system'] ||
+          false;
+        const { data, serviceTypes, groups } = route;
+        const licenseType = env.platform?.license;
+        this.serviceTypes = serviceTypes.filter(
+          (s: { name: string }) => s.name.toLowerCase() !== 'python'
+        );
+        this.notIncludedServices = [];
+        if (data && (data.label || data.name)) {
+          this.snackbarService.setSnackbarLastEle(
+            data.label ? data.label : data.name,
+            false
+          );
+        } else {
+          this.snackbarService.setSnackbarLastEle('Unknown label', false);
+        }
+        // Punch 5: the shell H1 falls back to the raw :id URL segment on
+        // edit pages; publish the service label (name as fallback, id if
+        // neither) keyed to this URL so the title reads "MyDB" not "48".
+        if (this.edit && data) {
+          this.snackbarService.setPageLabel(
+            this.router.url,
+            data.label || data.name || String(data.id ?? '')
+          );
+        }
+        if (this.isDatabase) {
+          if (licenseType === 'SILVER') {
+            this.notIncludedServices.push(
+              ...GOLD_SERVICES.map(s => {
+                s.class = 'not-included';
+                return s;
+              }).filter(s => groups.includes(s.group))
+            );
+          }
+          if (licenseType === 'OPEN SOURCE') {
+            this.notIncludedServices.push(
+              ...SILVER_SERVICES.map(s => {
+                s.class = 'not-included';
+                return s;
+              }).filter(s => groups.includes(s.group)),
+              ...GOLD_SERVICES.map(s => {
+                s.class = 'not-included';
+                return s;
+              }).filter(s => groups.includes(s.group))
+            );
+          }
+        } else {
+          if (licenseType === 'SILVER') {
+            this.serviceTypes.push(
+              ...GOLD_SERVICES.filter(s => groups.includes(s.group))
+            );
+          }
+          if (licenseType === 'OPEN SOURCE') {
+            this.serviceTypes.push(
+              ...SILVER_SERVICES.filter(s => groups.includes(s.group)),
+              ...GOLD_SERVICES.filter(s => groups.includes(s.group))
+            );
+          }
+        }
+        if (data?.serviceDocByServiceId) {
+          // For network services, keep the old behavior
+          if (this.isNetworkService) {
+            data.config.serviceDefinition = data?.serviceDocByServiceId.content;
+            // Set the service doc content in the dedicated field
+            this.getServiceDocByServiceIdControl('content').setValue(
+              data?.serviceDocByServiceId.content
+            );
+          }
+          // For script services, handle migration of old data structure
+          else if (this.isScriptService) {
+            // Ensure config object exists
+            if (!data.config) {
+              data.config = {};
+            }
+
+            // Helper function to detect if content is likely an OpenAPI/Swagger spec
+            const isLikelyOpenApiSpec = (content: string): boolean => {
+              if (!content) return false;
+              const trimmed = content.trim();
+
+              // Check for common OpenAPI/Swagger patterns
+              const openApiPatterns = [
+                /^\s*\{?\s*["']?openapi["']?\s*:/i, // JSON or YAML openapi field
+                /^\s*\{?\s*["']?swagger["']?\s*:/i, // JSON or YAML swagger field
+                /^\s*openapi\s*:/im, // YAML format
+                /^\s*swagger\s*:/im, // YAML format
+                /["']paths["']\s*:\s*\{/i, // JSON paths object
+                /^\s*paths\s*:/im, // YAML paths
+              ];
+
+              return openApiPatterns.some(pattern => pattern.test(trimmed));
+            };
+
+            // Check if this is an old script service with content in the wrong place
+            // Old structure: script content was in serviceDocByServiceId.content
+            // New structure: script content should be in config.content, OpenAPI spec (if any) in serviceDocByServiceId.content
+            if (!data.config.content || data.config.content.trim() === '') {
+              // No script content in config, check if it's in serviceDocByServiceId
+              if (data.serviceDocByServiceId?.content) {
+                // Determine if this is script content or an OpenAPI spec
+                if (isLikelyOpenApiSpec(data.serviceDocByServiceId.content)) {
+                  // This is an OpenAPI spec - leave it in the OpenAPI field
+                  this.getServiceDocByServiceIdControl('content').setValue(
+                    data.serviceDocByServiceId.content
+                  );
+                } else {
+                  // This is likely script content - migrate it
+                  data.config.content = data.serviceDocByServiceId.content;
+                  // Clear the OpenAPI field since this was script content
+                  this.getServiceDocByServiceIdControl('content').setValue('');
+                }
+              }
+            } else {
+              // Script content exists in config.content (correct location)
+              // serviceDocByServiceId.content (if present) is an actual OpenAPI spec
+              this.getServiceDocByServiceIdControl('content').setValue(
+                data?.serviceDocByServiceId.content || ''
+              );
+            }
+          } else {
+            // For other service types, just set the service doc content
+            this.getServiceDocByServiceIdControl('content').setValue(
+              data?.serviceDocByServiceId.content
+            );
+          }
+        }
+        this.serviceData = data;
+        if (data) {
+          // For script services, use script content, not service definition
+          if (this.isScriptService) {
+            this.content = data.config.content || '';
+          } else {
+            this.content = data.config.serviceDefinition || '';
+          }
+        } else {
+          this.content = '';
+        }
+        if (this.edit) {
+          this.configSchema = this.getConfigSchema(data.type);
+          this.initializeConfig('');
+
+          // For Excel services, extract storage_service_id and load file services
+          if (data.type === 'excel') {
+            console.log('Editing Excel service, data:', data);
+            console.log('Config:', data.config);
+            console.log(
+              'Storage service ID from config:',
+              data.config?.storageServiceId
+            );
+
+            // Extract storageServiceId from config
+            const storageServiceId = data.config?.storageServiceId;
+
+            // Load file services first, then set the form value when services are loaded
+            this.loadAvailableFileServices(() => {
+              console.log('File services loaded, now setting form value');
+              if (storageServiceId) {
+                console.log('Setting storageServiceId to:', storageServiceId);
+                this.serviceForm.patchValue({
+                  ...data,
+                  config: data.config,
+                  storageServiceId: storageServiceId,
+                });
+              } else {
+                console.log('No storageServiceId found in config');
+                this.serviceForm.patchValue({
+                  ...data,
+                  config: data.config,
+                });
+              }
+            });
+          } else {
+            this.serviceForm.patchValue({
+              ...data,
+              config: data.config,
+            });
+          }
+          if (data?.serviceDocByServiceId) {
+            this.serviceDefinitionType =
+              '' + data?.serviceDocByServiceId.format;
+
+            // For network services, set the content field
+            if (this.isNetworkService) {
+              this.getConfigControl('content')?.setValue(
+                data.serviceDocByServiceId.content
+              );
+              this.content = data.serviceDocByServiceId.content || '';
+            }
+            // For script services, keep script content separate from OpenAPI spec
+            else if (this.isScriptService) {
+              // Don't overwrite script content - OpenAPI spec is handled separately
+              // The script content should remain in data.config.content
+              // The OpenAPI spec is already set in getServiceDocByServiceIdControl above
+            }
+          }
+          this.serviceForm.controls['type'].disable();
+        } else {
+          this.serviceForm.controls['type'].valueChanges.subscribe(value => {
+            this.serviceForm.removeControl('config');
+            this.configSchema = this.getConfigSchema(value);
+            // Update service type flags based on selected type
+            this.updateServiceTypeFlags(value);
+            this.initializeConfig(value);
+
+            // Load file services when Excel service type is selected
+            if (value === 'excel') {
+              this.loadAvailableFileServices();
+            }
+          });
+        }
+
+        // If editing an Excel service, load file services immediately
+        if (this.edit && data?.type === 'excel') {
+          this.loadAvailableFileServices();
+        }
+
+        // If editing an MCP service, load available services and custom tools
+        if (this.edit && this.isMcp) {
+          const disabled: string[] = data?.config?.disabledTools ?? [];
+          this.disabledTools = new Set(disabled);
+          this.customTools = (data?.config?.customTools ?? []).map(
+            (t: any) => ({
+              id: t.id,
+              toolType: t.toolType || 'api',
+              name: t.name,
+              description: t.description,
+              httpMethod: t.httpMethod,
+              url: t.url,
+              parameters: t.parameters || [],
+              headers: t.headers || {},
+              function: t.function || '',
+              enabled: t.enabled !== false && t.enabled !== 0,
+              storageServiceId: t.storageServiceId || null,
+              scmRepository: t.scmRepository || '',
+              scmReference: t.scmReference || '',
+              storagePath: t.storagePath || '',
+            })
+          );
+          this.loadMcpServices();
+          this.loadAvailableScmServices();
+        }
+
+        // Meridian Phase 1: on the service Overview (viewing an existing
+        // database service), fetch the pieces the Live API Card needs — a real
+        // sample table and any API key whose role can read this service.
+        if (this.edit && this.isDatabase && this.serviceData) {
+          this.loadArtifactCardData();
+        }
+      });
+    if (this.isDatabase) {
+      this.serviceForm.controls['type'].valueChanges.subscribe(value => {
+        this.serviceForm.patchValue({
+          label: value,
+        });
+      });
+    }
+  }
+
+  getStorageServiceDisplayName(): string {
+    console.log('=== getStorageServiceDisplayName called ===');
+    console.log('this.edit:', this.edit);
+    console.log('this.serviceData:', this.serviceData);
+    console.log('this.availableFileServices:', this.availableFileServices);
+
+    // First try to get from the form
+    let storageServiceId = this.serviceForm.get('storageServiceId')?.value;
+    console.log('storageServiceId from form:', storageServiceId);
+
+    // If not in form, try to get from service data (for editing)
+    if (
+      !storageServiceId &&
+      this.edit &&
+      this.serviceData?.config?.storageServiceId
+    ) {
+      storageServiceId = this.serviceData.config.storageServiceId;
+      console.log(
+        'storageServiceId from serviceData.config.storageServiceId:',
+        storageServiceId
+      );
+    }
+
+    // Debug: Let's see what's in the service data
+    console.log('this.serviceData.config:', this.serviceData?.config);
+    console.log(
+      'this.serviceData.config?.storageServiceId:',
+      this.serviceData?.config?.storageServiceId
+    );
+
+    if (!storageServiceId) {
+      console.log('No storageServiceId found, returning default message');
+      return 'No storage service selected';
+    }
+
+    const selectedService = this.availableFileServices.find(
+      service => service.id === storageServiceId
+    );
+    console.log('selectedService found:', selectedService);
+
+    if (selectedService) {
+      const displayName = selectedService.label || selectedService.name;
+      console.log('Returning display name:', displayName);
+      return displayName;
+    } else {
+      console.log('Service not found in availableFileServices, returning ID');
+      return `Service ID: ${storageServiceId}`;
+    }
+  }
+
+  loadAvailableFileServices(callback?: () => void) {
+    console.log('=== loadAvailableFileServices called ===');
+    console.log(
+      'Current service form type:',
+      this.serviceForm.getRawValue().type
+    );
+    console.log(
+      'Available file services before loading:',
+      this.availableFileServices
+    );
+
+    // Try multiple authentication methods
+    let authHeader = '';
+
+    // Method 1: Check localStorage for API key
+    const apiKey =
+      localStorage.getItem('df_token') ||
+      localStorage.getItem('X-DreamFactory-API-Key') ||
+      sessionStorage.getItem('df_token');
+
+    if (apiKey) {
+      authHeader = `X-DreamFactory-API-Key: ${apiKey}`;
+    } else {
+      // Method 2: Try to get from cookies
+      const cookies = document.cookie.split(';');
+      let sessionToken = '';
+      let apiKeyFromCookie = '';
+
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'df_session_token' || name === 'session_token') {
+          sessionToken = value;
+        }
+        if (name === 'df_api_key' || name === 'api_key') {
+          apiKeyFromCookie = value;
+        }
+      }
+
+      if (sessionToken) {
+        authHeader = `X-DreamFactory-Session-Token: ${sessionToken}`;
+      } else if (apiKeyFromCookie) {
+        authHeader = `X-DreamFactory-API-Key: ${apiKeyFromCookie}`;
+      } else {
+        // Method 3: Check if there's a global variable or service
+        if ((window as any).dfAuthToken) {
+          authHeader = `X-DreamFactory-API-Key: ${(window as any).dfAuthToken}`;
+        } else if ((window as any).dreamFactoryToken) {
+          authHeader = `X-DreamFactory-API-Key: ${
+            (window as any).dreamFactoryToken
+          }`;
+        }
+      }
+    }
+
+    if (!authHeader) {
+      console.warn('No authentication method found, cannot load file services');
+      this.availableFileServices = [];
+      if (callback) callback();
+      return;
+    }
+
+    // Get file services from the system
+    const apiUrl = `${window.location.origin}/api/v2/system/service`;
+
+    // Parse the auth header to get key and value
+    const [headerName, headerValue] = authHeader.split(': ');
+    const headers: any = {};
+    if (headerName && headerValue) {
+      headers[headerName] = headerValue;
+    }
+
+    this.http
+      .get<any>(apiUrl, {
+        params: {
+          filter: 'type=local_file',
+          fields: 'id,name,label,type',
+        },
+        headers: headers,
+      })
+      .subscribe({
+        next: (response: any) => {
+          if (response.resource && Array.isArray(response.resource)) {
+            this.availableFileServices = response.resource;
+            console.log(
+              'File services loaded successfully:',
+              this.availableFileServices
+            );
+          } else {
+            console.warn(
+              'No file services found in response or invalid format'
+            );
+            this.availableFileServices = [];
+          }
+          if (callback) callback();
+        },
+        error: error => {
+          console.error('Failed to load file services:', error);
+
+          // Fallback: try to get services without filter
+          this.http
+            .get<any>(apiUrl, {
+              params: {
+                fields: 'id,name,label,type',
+              },
+              headers: headers,
+            })
+            .subscribe({
+              next: (fallbackResponse: any) => {
+                if (
+                  fallbackResponse.resource &&
+                  Array.isArray(fallbackResponse.resource)
+                ) {
+                  // Filter for file-related services
+                  const allServices = fallbackResponse.resource;
+
+                  this.availableFileServices = allServices.filter(
+                    (service: any) =>
+                      service.type &&
+                      (service.type === 'local_file' ||
+                        service.type === 'file' ||
+                        service.type.includes('file'))
+                  );
+                  console.log(
+                    'File services loaded via fallback:',
+                    this.availableFileServices
+                  );
+                } else {
+                  this.availableFileServices = [];
+                }
+                if (callback) callback();
+              },
+              error: fallbackError => {
+                console.error('Fallback also failed:', fallbackError);
+                this.availableFileServices = [];
+                if (callback) callback();
+              },
+            });
+        },
+      });
+  }
+
+  loadMcpServices() {
+    if (this.mcpServicesLoaded) return;
+
+    this.http
+      .get<any>('/api/v2/system/service_type', {
+        params: { fields: 'name,group' },
+      })
+      .pipe(
+        switchMap((typeData: any) => {
+          const types: any[] = typeData?.resource ?? [];
+          const dbTypes = new Set(
+            types
+              .filter((t: any) => t.group === 'Database')
+              .map((t: any) => t.name)
+          );
+          const fileTypes = new Set(
+            types.filter((t: any) => t.group === 'File').map((t: any) => t.name)
+          );
+
+          return this.http
+            .get<any>('/api/v2/system/service', {
+              params: { fields: 'name,label,type,is_active' },
+            })
+            .pipe(
+              map((svcData: any) => {
+                const services: any[] = svcData?.resource ?? [];
+                return services
+                  .filter(
+                    (s: any) =>
+                      s.isActive !== false &&
+                      (dbTypes.has(s.type) || fileTypes.has(s.type))
+                  )
+                  .map((s: any) => {
+                    const category = dbTypes.has(s.type) ? 'Database' : 'File';
+                    const prefix = this.sanitizeApiName(s.name);
+                    return {
+                      name: s.name,
+                      label: s.label || s.name,
+                      type: s.type,
+                      category,
+                      tools: this.buildToolList(prefix, category),
+                      expanded: false,
+                    };
+                  });
+              })
+            );
+        })
+      )
+      .subscribe({
+        next: services => {
+          this.mcpServices = services;
+          this.mcpServicesLoaded = true;
+        },
+        error: err => {
+          console.error('Failed to load MCP services:', err);
+          this.mcpServicesLoaded = true;
+        },
+      });
+  }
+
+  private buildToolList(
+    prefix: string,
+    category: string
+  ): { name: string; title: string; description: string }[] {
+    if (category === 'Database') {
+      return [
+        {
+          name: `${prefix}_get_tables`,
+          title: 'List Tables',
+          description: 'Get tables available in the database',
+        },
+        {
+          name: `${prefix}_get_table_schema`,
+          title: 'Get Table Schema',
+          description: 'Retrieve the schema of a specific table',
+        },
+        {
+          name: `${prefix}_get_table_data`,
+          title: 'Get Table Data',
+          description:
+            'Retrieve table data with filtering, pagination, and sorting',
+        },
+        {
+          name: `${prefix}_create_records`,
+          title: 'Create Records',
+          description: 'Create one or more records in a table',
+        },
+        {
+          name: `${prefix}_update_records`,
+          title: 'Update Records',
+          description: 'Update (patch) records in a table',
+        },
+        {
+          name: `${prefix}_delete_records`,
+          title: 'Delete Records',
+          description: 'Delete records from a table',
+        },
+        {
+          name: `${prefix}_get_table_fields`,
+          title: 'Get Table Fields',
+          description: 'Retrieve field definitions for a table',
+        },
+        {
+          name: `${prefix}_get_table_relationships`,
+          title: 'Get Table Relationships',
+          description: 'Retrieve relationships definition for a table',
+        },
+        {
+          name: `${prefix}_get_stored_procedures`,
+          title: 'List Stored Procedures',
+          description: 'Get stored procedures available in the database',
+        },
+        {
+          name: `${prefix}_call_stored_procedure`,
+          title: 'Call Stored Procedure',
+          description: 'Call a stored procedure',
+        },
+        {
+          name: `${prefix}_get_stored_functions`,
+          title: 'List Stored Functions',
+          description: 'Get stored functions available in the database',
+        },
+        {
+          name: `${prefix}_call_stored_function`,
+          title: 'Call Stored Function',
+          description: 'Call a stored function',
+        },
+        {
+          name: `${prefix}_get_database_resources`,
+          title: 'List Database Resources',
+          description: 'Get all resources available in the database service',
+        },
+        {
+          name: `${prefix}_get_api_spec`,
+          title: 'Get API Spec',
+          description:
+            'Get the OpenAPI specification for this database service',
+        },
+        {
+          name: `${prefix}_get_data_model`,
+          title: 'Get Data Model',
+          description:
+            'Get a condensed data model showing all tables and columns',
+        },
+        {
+          name: `${prefix}_aggregate_data`,
+          title: 'Aggregate Data',
+          description:
+            'Compute server-side aggregations (SUM, COUNT, AVG, MIN, MAX)',
+        },
+      ];
+    }
+    return [
+      {
+        name: `${prefix}_list_files`,
+        title: 'List Files',
+        description: 'List files and folders in a path',
+      },
+      {
+        name: `${prefix}_get_file`,
+        title: 'Get File Content',
+        description: 'Get the content of a file',
+      },
+      {
+        name: `${prefix}_create_file`,
+        title: 'Create File',
+        description: 'Create a new file with the given content',
+      },
+      {
+        name: `${prefix}_get_file_properties`,
+        title: 'Get File Properties',
+        description: 'Get properties/metadata of a file or folder',
+      },
+      {
+        name: `${prefix}_create_folder`,
+        title: 'Create Folder',
+        description: 'Create a new folder',
+      },
+      {
+        name: `${prefix}_delete_file`,
+        title: 'Delete File or Folder',
+        description: 'Delete a file or folder',
+      },
+    ];
+  }
+
+  isToolEnabled(toolName: string): boolean {
+    return !this.disabledTools.has(toolName);
+  }
+
+  toggleTool(toolName: string, enabled: boolean) {
+    if (enabled) {
+      this.disabledTools.delete(toolName);
+    } else {
+      this.disabledTools.add(toolName);
+    }
+  }
+
+  isAllGlobalToolsEnabled(): boolean {
+    return this.mcpGlobalTools.some(t => !this.disabledTools.has(t.name));
+  }
+
+  toggleAllGlobalTools(enabled: boolean) {
+    for (const tool of this.mcpGlobalTools) {
+      if (enabled) {
+        this.disabledTools.delete(tool.name);
+      } else {
+        this.disabledTools.add(tool.name);
+      }
+    }
+  }
+
+  isServiceEnabled(svc: { tools: { name: string }[] }): boolean {
+    return svc.tools.some(t => !this.disabledTools.has(t.name));
+  }
+
+  toggleService(svc: { tools: { name: string }[] }, enabled: boolean) {
+    for (const tool of svc.tools) {
+      if (enabled) {
+        this.disabledTools.delete(tool.name);
+      } else {
+        this.disabledTools.add(tool.name);
+      }
+    }
+  }
+
+  private sanitizeApiName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+  }
+
+  // Custom tools management
+  get customToolParameters(): FormArray {
+    return this.customToolForm.get('parameters') as FormArray;
+  }
+
+  createParameterGroup(param?: any): FormGroup {
+    return this.fb.group({
+      name: [param?.name ?? '', Validators.required],
+      type: [param?.type ?? 'string'],
+      in: [param?.in ?? 'query'],
+      required: [param?.required ?? false],
+      description: [param?.description ?? ''],
+    });
+  }
+
+  addCustomTool() {
+    this.editingToolIndex = -1;
+    this.customToolForm.reset({
+      toolType: 'api',
+      name: '',
+      description: '',
+      httpMethod: 'GET',
+      url: '',
+      headers: '{}',
+      function: '',
+      enabled: true,
+      storageServiceId: null,
+      scmRepository: '',
+      scmReference: '',
+      storagePath: '',
+    });
+    this.customToolParameters.clear();
+    this.liveHeadersValue = null;
+    this.liveFunctionValue = null;
+  }
+
+  editCustomTool(index: number) {
+    const tool = this.customTools[index];
+    this.editingToolIndex = index;
+    const headersJson = JSON.stringify(tool.headers || {}, null, 2);
+    this.customToolForm.patchValue({
+      toolType: tool.toolType || 'api',
+      name: tool.name,
+      description: tool.description,
+      httpMethod: tool.httpMethod || 'GET',
+      url: tool.url || '',
+      headers: headersJson,
+      function: tool.function || '',
+      enabled: tool.enabled,
+      storageServiceId: tool.storageServiceId || null,
+      scmRepository: tool.scmRepository || '',
+      scmReference: tool.scmReference || '',
+      storagePath: tool.storagePath || '',
+    });
+    this.liveHeadersValue = headersJson;
+    this.liveFunctionValue = tool.function || '';
+    this.customToolParameters.clear();
+    (tool.parameters || []).forEach((p: any) => {
+      this.customToolParameters.push(this.createParameterGroup(p));
+    });
+  }
+
+  deleteCustomTool(index: number) {
+    this.customTools.splice(index, 1);
+  }
+
+  onHeadersChange(value: string): void {
+    this.liveHeadersValue = value;
+  }
+
+  onFunctionChange(value: string): void {
+    this.liveFunctionValue = value;
+  }
+
+  insertLookup(
+    lookupName: string,
+    target: 'function' | 'headers' | 'url'
+  ): void {
+    if (target === 'function') {
+      this.functionEditor?.insertAtCursor(`secrets.${lookupName}`);
+    } else if (target === 'headers') {
+      this.headersEditor?.insertAtCursor(`{${lookupName}}`);
+    } else if (target === 'url') {
+      const urlCtrl = this.customToolForm.get('url');
+      if (urlCtrl) {
+        const current = urlCtrl.value || '';
+        urlCtrl.setValue(current + `{${lookupName}}`);
+      }
+    }
+  }
+
+  saveCustomTool() {
+    if (this.customToolForm.invalid) return;
+
+    const formValue = this.customToolForm.getRawValue();
+
+    // Use live editor values captured via (valueChange) — the reactive form
+    // binding loses sync when *ngIf destroys/recreates the editor components.
+    const headersStr = this.liveHeadersValue ?? formValue.headers ?? '{}';
+    const functionStr = this.liveFunctionValue ?? formValue.function ?? '';
+
+    let headers: Record<string, string> = {};
+    if (formValue.toolType === 'api' && headersStr.trim() !== '') {
+      try {
+        headers = JSON.parse(headersStr);
+      } catch (e: any) {
+        this.snackbarService.openSnackBar(
+          `Invalid JSON in Static Headers: ${e.message}`,
+          'error'
+        );
+        return;
+      }
+    }
+
+    const tool: any = {
+      toolType: formValue.toolType || 'api',
+      name: formValue.name,
+      description: formValue.description,
+      httpMethod: formValue.httpMethod,
+      url: formValue.url,
+      parameters: formValue.parameters || [],
+      headers,
+      function: functionStr,
+      enabled: formValue.enabled ?? true,
+      storageServiceId: formValue.storageServiceId || null,
+      scmRepository: formValue.scmRepository || '',
+      scmReference: formValue.scmReference || '',
+      storagePath: formValue.storagePath || '',
+    };
+
+    if (this.editingToolIndex === -1) {
+      this.customTools.push(tool);
+    } else if (this.editingToolIndex !== null) {
+      tool.id = this.customTools[this.editingToolIndex].id;
+      this.customTools[this.editingToolIndex] = tool;
+    }
+
+    this.editingToolIndex = null;
+  }
+
+  cancelCustomToolEdit() {
+    this.editingToolIndex = null;
+  }
+
+  hasUnsavedCustomTool(): boolean {
+    return this.editingToolIndex !== null && this.customToolForm.dirty;
+  }
+
+  closeUnsavedToolDialog(choice: UnsavedToolChoice) {
+    this.unsavedToolDialogRef?.close(choice);
+  }
+
+  toggleCustomTool(index: number, enabled: boolean) {
+    this.customTools[index].enabled = enabled;
+  }
+
+  loadAvailableScmServices() {
+    this.http
+      .get<any>('/api/v2', {
+        params: {
+          group: 'source control',
+          fields: 'id,name,label,type',
+        },
+        context: silent(),
+      })
+      .subscribe({
+        next: (res: any) => {
+          this.availableScmServices = (
+            res?.resource ??
+            res?.services ??
+            []
+          ).filter((s: any) => s.id && s.name);
+        },
+        // Silent by design: SCM dropdown enrichment; the form works without
+        // it, so no toast (see context: silent() above).
+        error: () => {
+          this.availableScmServices = [];
+        },
+      });
+  }
+
+  viewLatestScmContent() {
+    const serviceId = this.customToolForm.get('storageServiceId')?.value;
+    const repo = this.customToolForm.get('scmRepository')?.value;
+    const branch = this.customToolForm.get('scmReference')?.value || 'master';
+    const path = this.customToolForm.get('storagePath')?.value;
+
+    if (!serviceId || !repo || !path) {
+      this.snackbarService.openSnackBar(
+        'Service, repository, and path are required to fetch from SCM.',
+        'error'
+      );
+      return;
+    }
+
+    const service = this.availableScmServices.find(s => s.id === serviceId);
+    if (!service) {
+      this.snackbarService.openSnackBar(
+        'Selected SCM service not found.',
+        'error'
+      );
+      return;
+    }
+
+    const url = `/api/v2/${service.name}/_repo/${repo}`;
+    this.http
+      .get(url, {
+        params: { branch, content: '1', path },
+        responseType: 'text',
+        // The error callback below shows its own contextual toast.
+        context: toastOff(),
+      })
+      .subscribe({
+        next: (content: string) => {
+          this.customToolForm.get('function')?.setValue(content);
+          this.liveFunctionValue = content;
+          this.snackbarService.openSnackBar(
+            'Function loaded from repository.',
+            'success'
+          );
+        },
+        error: (err: any) => {
+          this.snackbarService.openSnackBar(
+            `Failed to fetch from SCM: ${normalizeError(err).message}`,
+            'error'
+          );
+        },
+      });
+  }
+
+  addToolParameter() {
+    this.customToolParameters.push(this.createParameterGroup());
+  }
+
+  removeToolParameter(index: number) {
+    this.customToolParameters.removeAt(index);
+  }
+
+  // Helper method for debugging (can be removed in production)
+  logFormValues() {
+    console.log('Form values:', this.serviceForm.value);
+  }
+
+  updateServiceTypeFlags(type: string) {
+    // Reset all flags
+    this.isNetworkService = false;
+    this.isScriptService = false;
+    this.isFile = false;
+
+    // Find the service type to get its group
+    const serviceType = this.serviceTypes.find(st => st.name === type);
+    if (serviceType && serviceType.group) {
+      const group = serviceType.group;
+      if (group === 'Remote Service') {
+        this.isNetworkService = true;
+      } else if (group === 'Script') {
+        this.isScriptService = true;
+      } else if (group === 'File') {
+        this.isFile = true;
+      }
+    }
+  }
+
+  initializeConfig(value: string) {
+    const config = this.fb.group({});
+
+    if (this.configSchema && this.configSchema.length > 0) {
+      this.configSchema.forEach(control => {
+        const validator = [];
+        if (control.required) {
+          validator.push(Validators.required);
+        }
+        config?.addControl(
+          control.name,
+          new FormControl(control.default, validator)
+        );
+      });
+      if (this.isFile && value === 'local_file') {
+        config?.addControl('excelContent', new FormControl(''));
+      }
+      const contentConfigControl = this.configSchema.filter(
+        control => control.name === 'content'
+      )?.[0];
+      if (contentConfigControl) {
+        const validator = [];
+        if (contentConfigControl.required) {
+          validator.push(Validators.required);
+        }
+        config?.addControl(
+          'serviceDefinition',
+          new FormControl(contentConfigControl.default, validator)
+        );
+      }
+      if (this.isNetworkService) {
+        this.serviceForm.addControl('type', new FormControl(''));
+        config.addControl('content', new FormControl(''));
+        // Initialize serviceDefinitionType for JSON/YAML toggle
+        this.serviceDefinitionType = '0'; // Default to JSON
+      }
+      if (this.isScriptService) {
+        // Ensure script services have content field for script content
+        if (!config.get('content')) {
+          config.addControl('content', new FormControl(''));
+        }
+        // Initialize serviceDefinitionType for JSON/YAML toggle
+        this.serviceDefinitionType = '0'; // Default to JSON
+      }
+    }
+
+    this.serviceForm.setControl('config', config);
+  }
+
+  get subscriptionRequired() {
+    const serviceType = this.serviceForm.controls['type'].value;
+    // Local email service is open source and should not require subscription
+    if (serviceType === 'local_email' || serviceType === 'api_builder') {
+      return false;
+    }
+
+    const selectedType = this.serviceTypes.find(st => st.name === serviceType);
+    if (selectedType?.group === 'API Builder') {
+      return false;
+    }
+
+    return serviceType && this.configSchema?.length === 0;
+  }
+
+  get scriptMode() {
+    const type = this.serviceForm.getRawValue().type;
+    if (type === 'nodejs') {
+      return AceEditorMode.NODEJS;
+    }
+    if (type === 'python') {
+      return AceEditorMode.PYTHON;
+    }
+    if (type === 'python3') {
+      return AceEditorMode.PYTHON3;
+    }
+    if (type === 'php') {
+      return AceEditorMode.PHP;
+    }
+    return AceEditorMode.TEXT;
+  }
+
+  get serviceDefinitionMode(): AceEditorMode {
+    return this.serviceDefinitionType === '0'
+      ? AceEditorMode.JSON
+      : AceEditorMode.YAML;
+  }
+
+  get excelMode(): AceEditorMode {
+    return AceEditorMode.JSON;
+  }
+
+  get functionEditorMode(): AceEditorMode {
+    return AceEditorMode.JAVASCRIPT;
+  }
+
+  get headersEditorMode(): AceEditorMode {
+    return AceEditorMode.JSON;
+  }
+
+  excelUpload(event: Event) {
+    const config = this.serviceForm.get('config');
+    const input = event.target as HTMLInputElement;
+    if (input.files) {
+      if (config && config.get('excelContent')) {
+        readAsText(input.files[0]).subscribe(value => {
+          const excelContentControl = config.get('excelContent');
+          if (excelContentControl) {
+            excelContentControl.setValue(value);
+          }
+        });
+      }
+    }
+  }
+
+  getConfigSchema(type: string) {
+    return (
+      this.serviceTypes
+        .find(serviceType => serviceType.name === type)
+        ?.configSchema.map(control => {
+          const items =
+            control.type === 'array' && Array.isArray(control.items)
+              ? control.items.map((each: ConfigSchema) => ({
+                  ...each,
+                  name: snakeToCamelString(each.name),
+                }))
+              : control.items;
+
+          return {
+            ...control,
+            name: snakeToCamelString(control.name),
+            items: items,
+          };
+        }) ?? []
+    );
+  }
+
+  // These schema-view getters are bound all over the template (*ngFor +
+  // *ngIf) and several call each other, so a single change-detection pass
+  // used to allocate 10+ fresh copies of the config schema array — every
+  // keystroke in the form re-filtered everything and tore down the *ngFor
+  // children (same hang pattern fixed in df-api-builder). configSchema is
+  // only ever reassigned (never mutated in place), so recompute the derived
+  // views only when configSchema or the service-type flags change and hand
+  // back stable array refs otherwise.
+  private schemaMemoSrc: Array<ConfigSchema> | null = null;
+  private schemaMemoIsDatabase: boolean | null = null;
+  private schemaMemoIsNetwork: boolean | null = null;
+  private memoViewSchema: Array<ConfigSchema> = [];
+  private memoHasStandardFields = false;
+  private memoBasicFields: Array<ConfigSchema> = [];
+  private memoAdvancedFields: Array<ConfigSchema> = [];
+  private memoNetworkRequiredFields: Array<ConfigSchema> = [];
+  private memoNetworkAdvancedFields: Array<ConfigSchema> = [];
+
+  private syncSchemaViews(): void {
+    if (
+      this.schemaMemoSrc === (this.configSchema ?? null) &&
+      this.schemaMemoIsDatabase === this.isDatabase &&
+      this.schemaMemoIsNetwork === this.isNetworkService
+    ) {
+      return;
+    }
+    this.schemaMemoSrc = this.configSchema ?? null;
+    this.schemaMemoIsDatabase = this.isDatabase;
+    this.schemaMemoIsNetwork = this.isNetworkService;
+
+    const viewSchema =
+      this.configSchema?.filter(
+        control => !['storageServiceId', 'storagePath'].includes(control.name)
+      ) || [];
+    this.memoViewSchema = viewSchema;
+
+    const standardFieldNames = [
+      'host',
+      'port',
+      'database',
+      'username',
+      'password',
+    ];
+    const fieldNames = viewSchema.map(field => field.name.toLowerCase());
+    // Standard connection form only when at least 3 of the standard fields exist
+    this.memoHasStandardFields =
+      this.isDatabase &&
+      standardFieldNames.filter(name => fieldNames.includes(name)).length >= 3;
+
+    if (!this.isDatabase) {
+      this.memoBasicFields = [];
+      this.memoAdvancedFields = [];
+    } else if (!this.memoHasStandardFields) {
+      // If not standard fields, return all fields as basic
+      this.memoBasicFields = viewSchema;
+      this.memoAdvancedFields = [];
+    } else {
+      this.memoBasicFields = viewSchema.filter(field =>
+        standardFieldNames.includes(field.name.toLowerCase())
+      );
+      this.memoAdvancedFields = viewSchema.filter(
+        field => !standardFieldNames.includes(field.name.toLowerCase())
+      );
+    }
+
+    // Base URL is the primary required field for network services; all other
+    // fields are considered advanced
+    const requiredFieldNames = ['baseUrl'];
+    if (!this.isNetworkService) {
+      this.memoNetworkRequiredFields = [];
+      this.memoNetworkAdvancedFields = [];
+    } else {
+      this.memoNetworkRequiredFields = viewSchema.filter(field =>
+        requiredFieldNames.includes(field.name)
+      );
+      this.memoNetworkAdvancedFields = viewSchema.filter(
+        field =>
+          !requiredFieldNames.includes(field.name) && field.name !== 'content'
+      );
+    }
+  }
+
+  get viewSchema() {
+    this.syncSchemaViews();
+    return this.memoViewSchema;
+  }
+
+  get hasStandardFields(): boolean {
+    this.syncSchemaViews();
+    return this.memoHasStandardFields;
+  }
+
+  get basicFields() {
+    this.syncSchemaViews();
+    return this.memoBasicFields;
+  }
+
+  get advancedFields() {
+    this.syncSchemaViews();
+    return this.memoAdvancedFields;
+  }
+
+  get showAdvancedOptions(): boolean {
+    return (
+      this.isDatabase &&
+      this.hasStandardFields &&
+      this.advancedFields.length > 0
+    );
+  }
+
+  // Network service field categorization
+  get networkRequiredFields() {
+    this.syncSchemaViews();
+    return this.memoNetworkRequiredFields;
+  }
+
+  get networkAdvancedFields() {
+    this.syncSchemaViews();
+    return this.memoNetworkAdvancedFields;
+  }
+
+  trackByName = (_: number, item: { name: string }): string => item.name;
+  trackById = (_: number, item: { id: number }): number => item.id;
+
+  get showNetworkAdvancedOptions(): boolean {
+    return this.isNetworkService;
+  }
+
+  // cURL import only makes sense where the schema exposes a base URL to point
+  // at, which is what the HTTP (rws) style services provide.
+  get showCurlImport(): boolean {
+    return (
+      this.isNetworkService &&
+      this.viewSchema.some(field => field.name === 'baseUrl')
+    );
+  }
+
+  openCurlImport(): void {
+    this.dialog
+      .open(DfCurlImportDialogComponent, { width: '46rem' })
+      .afterClosed()
+      .subscribe((parsed?: ParsedCurl) => {
+        if (parsed) {
+          this.applyCurlImport(parsed);
+        }
+      });
+  }
+
+  // Verb bitmask used by rws_parameters_config.action / rws_headers_config.action.
+  private static readonly VERB_MASK: Record<string, number> = {
+    GET: 1,
+    POST: 2,
+    PUT: 4,
+    PATCH: 8,
+    DELETE: 16,
+  };
+
+  private applyCurlImport(parsed: ParsedCurl): void {
+    const config = this.serviceForm.get('config');
+    if (!config) {
+      return;
+    }
+
+    const setIfPresent = (name: string, value: any) => {
+      const control = config.get(name);
+      if (control) {
+        control.setValue(value);
+        control.markAsDirty();
+      }
+    };
+
+    // A verb we cannot represent (HEAD, OPTIONS) leaves action at 0, which the
+    // backend treats as "applies to every verb".
+    const action = DfServiceDetailsComponent.VERB_MASK[parsed.method] ?? 0;
+
+    setIfPresent('baseUrl', parsed.baseUrl);
+
+    setIfPresent(
+      'parameters',
+      parsed.parameters.map(param => ({
+        name: param.name,
+        value: param.value,
+        exclude: false,
+        outbound: true,
+        cacheKey: false,
+        action,
+      }))
+    );
+
+    setIfPresent(
+      'headers',
+      parsed.headers.map(header => ({
+        name: header.name,
+        value: header.value,
+        passFromClient: false,
+        action,
+      }))
+    );
+
+    if (Object.keys(parsed.options).length) {
+      // CURL options are an object field, so merge rather than clobber whatever
+      // the user already configured.
+      const existing = config.get('options')?.value ?? {};
+      setIfPresent('options', { ...existing, ...parsed.options });
+    }
+
+    this.serviceForm.markAsDirty();
+  }
+
+  getConfigControl(name: string) {
+    return this.serviceForm.get(`config.${name}`) as FormControl;
+  }
+
+  // df-service-details camelCases all schema field names when building the
+  // form (see getConfigSchema -> snakeToCamelString). So ai_role_id is
+  // exposed on the form as aiRoleId, ai_service_id as aiServiceId, etc.
+  get aiRoleId(): number | null {
+    const c = this.serviceForm.get('config.aiRoleId');
+    const v = c?.value;
+    return typeof v === 'number' ? v : null;
+  }
+
+  get aiServiceId(): number | null {
+    const c = this.serviceForm.get('config.aiServiceId');
+    const v = c?.value;
+    return typeof v === 'number' ? v : null;
+  }
+
+  setAiServiceId(id: number): void {
+    this.serviceForm.get('config.aiServiceId')?.setValue(id);
+  }
+
+  setAiRoleId(id: number): void {
+    this.serviceForm.get('config.aiRoleId')?.setValue(id);
+  }
+
+  getServiceDocByServiceIdControl(name: string) {
+    return this.serviceForm.get(
+      `service_doc_by_service_id.${name}`
+    ) as FormControl;
+  }
+
+  getServiceDefinitionControl() {
+    return this.serviceForm.get('serviceDefinition') as FormControl;
+  }
+
+  getControl(name: string) {
+    return this.serviceForm.controls[name] as FormControl;
+  }
+  warnings: string[] = [];
+
+  save(Cache: boolean, Continue: boolean) {
+    if (this.hasUnsavedCustomTool()) {
+      if (this.unsavedToolDialogRef) return;
+      this.unsavedToolDialogRef = this.dialog.open<
+        unknown,
+        unknown,
+        UnsavedToolChoice
+      >(this.unsavedToolDialogTpl, {
+        width: '440px',
+        disableClose: true,
+      });
+      this.unsavedToolDialogRef.afterClosed().subscribe(choice => {
+        this.unsavedToolDialogRef = null;
+        if (!choice || choice === 'cancel') return;
+        if (choice === 'save') {
+          if (this.customToolForm.invalid) {
+            this.snackbarService.openSnackBar(
+              'Custom tool has invalid fields. Fix them or discard the edit before saving the service.',
+              'error'
+            );
+            return;
+          }
+          this.saveCustomTool();
+        } else {
+          this.cancelCustomToolEdit();
+        }
+        this.customToolForm.markAsPristine();
+        this.save(Cache, Continue);
+      });
+      return;
+    }
+
+    const data = this.serviceForm.getRawValue();
+    if (data.type === '' || data.name === '') {
+      // Show validation errors instead of silently doing nothing.
+      this.serviceForm.markAllAsTouched();
+      return;
+    }
+    if (!this.validateServiceName(data.name)) {
+      console.warn(this.warnings);
+    }
+
+    const formattedName = this.formatServiceName(data.name);
+    this.serviceForm.patchValue({ name: formattedName });
+    type Params = {
+      snackbarSuccess?: string;
+      fields?: string;
+      related?: string;
+    };
+
+    let params: Params = {
+      snackbarSuccess: 'services.createSuccessMsg',
+    };
+
+    // Initialize service_doc_by_service_id based on service type
+    let serviceDoc = null;
+
+    if (this.isNetworkService) {
+      params = {
+        ...params,
+        fields: '*',
+        related: 'service_doc_by_service_id',
+      };
+      // For network services (including RWS), use the content field
+      if (data.config?.content) {
+        serviceDoc = {
+          content: data.config.content,
+          format: this.serviceDefinitionType
+            ? Number(this.serviceDefinitionType)
+            : 0,
+        };
+        // Remove content from config as it's moved to service_doc_by_service_id
+        delete data.config.content;
+      }
+    } else if (this.isScriptService) {
+      params = {
+        ...params,
+        fields: '*',
+        related: 'service_doc_by_service_id',
+      };
+      // For script services, check if there's an OpenAPI spec
+      const openApiContent =
+        this.getServiceDocByServiceIdControl('content')?.value;
+      if (openApiContent && openApiContent.trim()) {
+        serviceDoc = {
+          content: openApiContent,
+          format: this.serviceDefinitionType
+            ? Number(this.serviceDefinitionType)
+            : 0,
+        };
+      }
+      // Keep script content in config.content - don't remove it
+      // Script content and OpenAPI spec are separate concerns
+    }
+
+    // Apply service_doc_by_service_id to data
+    data.service_doc_by_service_id = serviceDoc;
+    let payload: any;
+    if (data.type.toLowerCase().includes('saml')) {
+      params = {
+        ...params,
+        fields: '*',
+        related: 'service_doc_by_service_id',
+      };
+      // data.service_doc_by_service_id = null;
+      payload = {
+        ...data,
+        is_active: data.isActive,
+        id: this.edit ? this.serviceData.id : null,
+        config: {
+          sp_nameIDFormat: data.config.spNameIDFormat,
+          default_role: data.config.defaultRole,
+          sp_x509cert: data.config.spX509cert,
+          sp_privateKey: data.config.spPrivateKey,
+          idp_entityId: data.config.idpEntityId,
+          idp_singleSignOnService_url: data.config.idpSingleSignOnServiceUrl,
+          idp_x509cert: data.config.idpX509cert,
+          relay_state: data.config.relayState,
+        },
+      };
+      if (data.config.appRoleMap) {
+        payload.config.app_role_map = data.config.appRoleMap.map(
+          (item: any) => {
+            return Object.keys(item).reduce(
+              (acc, cur) =>
+                (acc = { ...acc, [camelToSnakeString(cur)]: item[cur] }),
+              {}
+            );
+          }
+        );
+      }
+      if (data.config.iconClass) {
+        payload.config.icon_class = data.config.iconClass;
+      }
+      delete payload.isActive;
+    } else if (data.type === 'excel') {
+      // For Excel services, handle storage_service_id
+      payload = {
+        ...data,
+        id: this.edit ? this.serviceData.id : null,
+        config: {
+          ...(data.config || {}),
+          storage_service_id: data.storageServiceId,
+        },
+      };
+      // Remove storageServiceId from root level as it's now in config
+      delete payload.storageServiceId;
+    } else {
+      // For other service types, use the base data
+      payload = {
+        ...data,
+        id: this.edit ? this.serviceData.id : null,
+      };
+    }
+    if (this.edit) {
+      let editPayload: any;
+
+      if (data.type === 'excel') {
+        // For Excel services, ensure storage_service_id is properly handled
+        editPayload = {
+          ...this.serviceData,
+          ...data,
+          config: {
+            ...(this.serviceData.config || {}),
+            ...data.config,
+            storage_service_id: data.storageServiceId, // Ensure this is included
+          },
+          service_doc_by_service_id: data.service_doc_by_service_id
+            ? {
+                // Preserve the existing record's id for UPDATE operations
+                id: this.serviceData.serviceDocByServiceId?.id,
+                ...(this.serviceData.serviceDocByServiceId || {}),
+                ...data.service_doc_by_service_id,
+              }
+            : null,
+        };
+        // Remove storageServiceId from root level as it's now in config
+        delete editPayload.storageServiceId;
+      } else {
+        // For other service types, use the standard approach
+        editPayload = {
+          ...this.serviceData,
+          ...data,
+          config: {
+            ...(this.serviceData.config || {}),
+            ...data.config,
+          },
+          service_doc_by_service_id: data.service_doc_by_service_id
+            ? {
+                // Preserve the existing record's id for UPDATE operations
+                id: this.serviceData.serviceDocByServiceId?.id,
+                ...(this.serviceData.serviceDocByServiceId || {}),
+                ...data.service_doc_by_service_id,
+              }
+            : null,
+        };
+      }
+
+      // Only delete serviceDefinition for network services, not script services
+      if (this.isNetworkService) {
+        delete editPayload.config.serviceDefinition;
+      }
+      // Include disabled tools and custom tools for MCP services
+      if (this.isMcp) {
+        editPayload.config.disabledTools = Array.from(this.disabledTools);
+        editPayload.config.customTools = this.customTools.map((tool: any) => ({
+          id: tool.id,
+          toolType: tool.toolType || 'api',
+          name: tool.name,
+          description: tool.description,
+          httpMethod: tool.httpMethod,
+          url: tool.url,
+          parameters: tool.parameters,
+          headers: tool.headers,
+          function: tool.function || '',
+          enabled: tool.enabled,
+          storageServiceId: tool.storageServiceId || null,
+          scmRepository: tool.scmRepository || '',
+          scmReference: tool.scmReference || '',
+          storagePath: tool.storagePath || '',
+        }));
+      }
+      this.servicesService
+        .update(this.serviceData.id, editPayload, {
+          snackbarSuccess: 'services.updateSuccessMsg',
+        })
+        .subscribe(() => {
+          if (data.type.toLowerCase().includes('saml')) {
+            this.router.navigate(['../'], { relativeTo: this.activatedRoute });
+          } else {
+            if (Cache) {
+              this.cacheService
+                .delete(editPayload.name, {
+                  snackbarSuccess: 'cache.serviceCacheFlushed',
+                })
+                .subscribe({
+                  next: () => {
+                    if (!Continue) {
+                      this.router.navigate(['../'], {
+                        relativeTo: this.activatedRoute,
+                      });
+                    }
+                  },
+                  error: (err: any) =>
+                    console.error('Error flushing cache', err),
+                });
+            }
+          }
+        });
+    } else {
+      this.servicesService
+        .create<ServiceResponse>(
+          {
+            resource: [payload],
+          },
+          params
+        )
+        .pipe(
+          // After creating the service, test the connection for database services
+          switchMap((response: ServiceResponse) => {
+            if (this.isDatabase) {
+              // Test database connection by requesting schema
+              return this.http.get(`${BASE_URL}/${formattedName}/_table`).pipe(
+                map(() => response), // If successful, pass through the original response
+                catchError(error => {
+                  // If connection fails, delete the service and show error
+                  return this.servicesService
+                    .delete(response.resource[0].id)
+                    .pipe(
+                      mergeMap(() => {
+                        return throwError(
+                          () =>
+                            new Error(
+                              'Database connection failed. Please check your connection details.'
+                            )
+                        );
+                      })
+                    );
+                })
+              );
+            }
+            return of(response);
+          })
+        )
+        .subscribe({
+          next: (response: ServiceResponse) => {
+            if (data.type.toLowerCase().includes('saml')) {
+              this.router.navigate(['../'], {
+                relativeTo: this.activatedRoute,
+              });
+            } else if (this.isDatabase) {
+              // Meridian Phase 1 proof-of-life: a new database API lands on its
+              // Overview (the Live API Card with a runnable curl), not the
+              // api-docs scavenger hunt. `../{id}` is the sibling :id route.
+              const newId = response?.resource?.[0]?.id;
+              if (newId != null) {
+                this.router.navigate(['../', newId], {
+                  relativeTo: this.activatedRoute,
+                });
+              } else {
+                this.router.navigate([
+                  `/api-connections/api-docs/${formattedName}`,
+                ]);
+              }
+            } else {
+              this.router.navigate([
+                `/api-connections/api-docs/${formattedName}`,
+              ]);
+            }
+          },
+          error: error => {
+            // Kept deliberately: the interceptor toast covers the raw HTTP
+            // failure, but this path also surfaces the local rollback error
+            // thrown after a failed database connection test above.
+            this.snackbarService.openSnackBar(
+              normalizeError(error).message,
+              'error'
+            );
+          },
+        });
+    }
+  }
+
+  validateServiceName(name: string): boolean {
+    const regex = /^[a-zA-Z0-9_-]+$/;
+    if (!regex.test(name)) {
+      this.warnings.push(
+        'Service name can only contain letters, numbers, underscores, and hyphens.'
+      );
+      return false;
+    }
+    return true;
+  }
+
+  formatServiceName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/[^a-z0-9_-]/g, '');
+  }
+
+  gotoSchema() {
+    const data = this.serviceForm.getRawValue();
+    this.router.navigate([`/admin-settings/schema/${data.name}`]);
+  }
+
+  gotoAPIDocs() {
+    const data = this.serviceForm.getRawValue();
+    this.currentServiceService.setCurrentServiceId(this.serviceData.id);
+    const formattedName = this.formatServiceName(data.name);
+    this.router.navigate([`/api-connections/api-docs/${formattedName}`]);
+  }
+
+  goBack() {
+    this.router.navigate(['../'], { relativeTo: this.activatedRoute });
+  }
+
+  // Fully-qualified service base for the Live API Card, e.g.
+  // https://host/api/v2/mydb — a real origin so the copied curl runs as-is.
+  get artifactBaseUrl(): string {
+    const name = this.serviceData?.name ?? '';
+    return `${window.location.origin}${BASE_URL}/${name}`;
+  }
+
+  // The card fires this when no key is present; send the user to create one.
+  onCreateApiKey(): void {
+    this.router.navigate(['/api-connections/api-keys/create']);
+  }
+
+  // Meridian Phase 3: a granted scope-matrix cell opens the role's resolved
+  // scope in a dialog. df-scope-matrix only emits for non-'none' cells, so
+  // there is always a real grant to inspect here.
+  onScopeCellClick(event: { roleId: number; verb: ScopeVerb }): void {
+    this.dialog.open(DfServiceRoleScopeDialogComponent, {
+      width: '640px',
+      maxWidth: '92vw',
+      autoFocus: false,
+      data: {
+        roleId: event.roleId,
+        verb: event.verb,
+        serviceLabel: this.serviceData?.label || this.serviceData?.name || '',
+      },
+    });
+  }
+
+  // Resolve a key + sample table for the Live API Card whose curl PROVABLY
+  // returns 200. The probe (candidate resolution + per-key 200 check) lives in
+  // the shared DfArtifactResolverService so Home, Overview, Docs, and
+  // post-create mount the card off one implementation.
+  private async loadArtifactCardData(): Promise<void> {
+    const name = this.serviceData?.name;
+    const id = this.serviceData?.id;
+    if (!name || typeof id !== 'number') {
+      this.artifactKeys = [];
+      return;
+    }
+    const res = await this.artifactResolver.resolveWorkingKeyAndTable(
+      id,
+      name,
+      this.artifactSampleTable
+    );
+    this.artifactSampleTable = res.sampleTable;
+    this.artifactKeys = res.keys;
+  }
+
+  getBackgroundImage(typeLabel: string) {
+    const image = this.images?.find(img => img.label == typeLabel);
+    if (!image) {
+      return '';
+    }
+    return image ? image.src : '';
+  }
+
+  // Bound to the service-type picker grid *ngFor; without memoization every
+  // change-detection pass re-filtered the whole list and returned a new array
+  // (the api-builder hang pattern). Recompute only when the list ref or the
+  // search term changes.
+  private memoServiceTypesSrc: Array<ServiceType> | null = null;
+  private memoServiceTypesSearch: string | null = null;
+  private memoFilteredServiceTypes: Array<ServiceType> = [];
+
+  get filteredServiceTypes() {
+    if (
+      this.memoServiceTypesSrc !== this.serviceTypes ||
+      this.memoServiceTypesSearch !== this.search
+    ) {
+      this.memoServiceTypesSrc = this.serviceTypes;
+      this.memoServiceTypesSearch = this.search;
+      const term = this.search.toLowerCase();
+      this.memoFilteredServiceTypes = this.serviceTypes.filter(
+        type =>
+          type.label.toLowerCase().includes(term) ||
+          type.name.toLowerCase().includes(term)
+      );
+    }
+    return this.memoFilteredServiceTypes;
+  }
+
+  nextStep(stepper: MatStepper) {
+    stepper.next();
+  }
+
+  openDialog(serviceTypeName: string) {
+    const dialogRef = this.dialog.open(DfPaywallModal, {
+      data: { serviceName: serviceTypeName },
+    });
+    dialogRef.afterClosed().subscribe();
+  }
+
+  onServiceDefinitionTypeChange(value: string) {
+    this.serviceDefinitionType = value;
+  }
+
+  navigateToRoles(event: Event) {
+    event.preventDefault();
+    // Navigate to roles tab
+    this.router.navigate(['/roles'], {
+      queryParams: {
+        tab: 'access', // This assumes you have a tab parameter in your roles component
+      },
+    });
+  }
+
+  async goToSecurityConfig() {
+    try {
+      // Create the service first
+      const data = this.serviceForm.getRawValue();
+      const formattedName = this.formatServiceName(data.name);
+      this.serviceForm.patchValue({ name: formattedName });
+
+      // Create a clean payload without service_doc_by_service_id
+      const payload = {
+        ...data,
+        config: {
+          ...(data.config || {}),
+        },
+      };
+
+      // Only add service_doc_by_service_id if it's a network or script service and has content
+      if (this.isNetworkService && data.config?.content) {
+        payload.service_doc_by_service_id = {
+          content: data.config.content,
+          format: this.serviceDefinitionType
+            ? Number(this.serviceDefinitionType)
+            : 0,
+        };
+        // Remove content from config as it's moved to service_doc_by_service_id
+        delete payload.config.content;
+      } else if (this.isScriptService) {
+        const openApiContent =
+          this.getServiceDocByServiceIdControl('content')?.value;
+        if (openApiContent && openApiContent.trim()) {
+          payload.service_doc_by_service_id = {
+            content: openApiContent,
+            format: this.serviceDefinitionType
+              ? Number(this.serviceDefinitionType)
+              : 0,
+          };
+        }
+      } else {
+        payload.service_doc_by_service_id = null;
+      }
+
+      const serviceResponse = await this.servicesService
+        .create<ServiceResponse>(
+          {
+            resource: [payload],
+          },
+          {
+            snackbarSuccess: 'services.createSuccessMsg',
+          }
+        )
+        .toPromise();
+
+      if (!serviceResponse) {
+        throw new Error('No response received from service creation');
+      }
+
+      // The response comes back with resource array containing the created service
+      const createdService = (serviceResponse as ServiceResponse).resource[0];
+
+      // Store the newly created service ID for role creation
+      this.currentServiceId = createdService.id;
+
+      // Show success message using DfSnackbarService
+      this.snackbarService.openSnackBar('Service created', 'success');
+
+      // Show security config section
+      this.showSecurityConfig = true;
+
+      // Move to security config step
+      setTimeout(() => {
+        this.stepper.selectedIndex = this.stepper.steps.length - 1;
+      });
+    } catch (error) {
+      // Show error message using DfSnackbarService
+      this.snackbarService.openSnackBar('Error creating service', 'error');
+    }
+  }
+
+  getServiceTypeLabel(value: string): string {
+    const selectedType = this.serviceTypes.find(type => type.name === value);
+    return selectedType ? selectedType.label : value;
+  }
+
+  onServiceTypeSelect(selectedServiceTypeLable: string) {
+    this.selectedServiceTypeLable =
+      selectedServiceTypeLable || 'Unknown. Unable to identify Service Type';
+  }
+}
+interface ImageObject {
+  alt: string;
+  src: string;
+  label: string;
+}

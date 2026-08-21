@@ -1,0 +1,322 @@
+<div class="service-access-accordion full-width" [formGroup]="roleForm">
+  <mat-accordion>
+    <mat-expansion-panel expanded="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          {{ 'roles.accessOverview.heading' | transloco }}</mat-panel-title
+        >
+        <mat-panel-description>
+          {{ 'roles.accessOverview.tableDescription' | transloco }}
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      <p>
+        {{ 'roles.accessOverview.description' | transloco }}
+      </p>
+      <ng-container formArrayName="serviceAccess">
+        <table mat-table [dataSource]="dataSource" multiTemplateDataRows>
+          <ng-container matColumnDef="service">
+            <th mat-header-cell *matHeaderCellDef>
+              {{ 'roles.accessOverview.tableHeadings.service' | transloco }}
+            </th>
+            <td
+              mat-cell
+              *matCellDef="let row; let i = dataIndex"
+              [formGroupName]="getFormArrayIndex(i)">
+              <mat-form-field subscriptSizing="dynamic" appearance="outline">
+                <mat-label>{{
+                  'roles.accessOverview.tableHeadings.service' | transloco
+                }}</mat-label>
+                <mat-select
+                  formControlName="service"
+                  panelWidth="null"
+                  (selectionChange)="getComponents(getFormArrayIndex(i))"
+                  required>
+                  <mat-option [value]="0">All</mat-option>
+                  <mat-option
+                    *ngFor="let option of serviceOptions; trackBy: trackById"
+                    [value]="option.id"
+                    >{{ option.name }}</mat-option
+                  >
+                </mat-select>
+                <mat-error
+                  *ngIf="
+                    formArray.controls[getFormArrayIndex(i)]
+                      ?.get('service')
+                      ?.hasError('required')
+                  ">
+                  Service is required
+                </mat-error>
+              </mat-form-field>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="component">
+            <th mat-header-cell *matHeaderCellDef>
+              {{ 'roles.accessOverview.tableHeadings.component' | transloco }}
+            </th>
+            <td
+              mat-cell
+              *matCellDef="let row; let i = dataIndex"
+              [formGroupName]="getFormArrayIndex(i)">
+              <mat-form-field subscriptSizing="dynamic" appearance="outline">
+                <mat-label>{{
+                  'roles.accessOverview.tableHeadings.component' | transloco
+                }}</mat-label>
+                <mat-select
+                  formControlName="component"
+                  panelWdith="null"
+                  required>
+                  <mat-option
+                    *ngFor="
+                      let option of getComponentArray(getFormArrayIndex(i))
+                    "
+                    [value]="option"
+                    >{{ option }}</mat-option
+                  >
+                </mat-select>
+                <mat-error
+                  *ngIf="
+                    formArray.controls[getFormArrayIndex(i)]
+                      ?.get('component')
+                      ?.hasError('required')
+                  ">
+                  Component is required
+                </mat-error>
+              </mat-form-field>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="access">
+            <th mat-header-cell *matHeaderCellDef>
+              {{ 'roles.accessOverview.tableHeadings.access' | transloco }}
+            </th>
+            <td
+              mat-cell
+              *matCellDef="let row; let i = dataIndex"
+              [formGroupName]="getFormArrayIndex(i)">
+              <mat-form-field subscriptSizing="dynamic" appearance="outline">
+                <mat-label>{{
+                  'roles.accessOverview.tableHeadings.access' | transloco
+                }}</mat-label>
+                <mat-select
+                  formControlName="access"
+                  multiple
+                  panelWidth="null"
+                  (selectionChange)="
+                    accessChange(getFormArrayIndex(i), $event.value)
+                  "
+                  required>
+                  <mat-option
+                    *ngFor="let option of accessOptions"
+                    [value]="option.value"
+                    >{{ option.label }}
+                    <span
+                      class="example-additional-selection"
+                      *ngIf="
+                        (formArray.controls[getFormArrayIndex(i)].value.access
+                          .length || 0) > 1
+                      ">
+                      (+{{
+                        (formArray.controls[getFormArrayIndex(i)].value.access
+                          .length || 0) - 1
+                      }}
+                      {{
+                        formArray.controls[getFormArrayIndex(i)].value.access
+                          .length === 2
+                          ? 'other'
+                          : 'others'
+                      }})
+                    </span>
+                  </mat-option>
+                </mat-select>
+                <mat-error
+                  *ngIf="
+                    formArray.controls[getFormArrayIndex(i)]
+                      ?.get('access')
+                      ?.hasError('required')
+                  ">
+                  Access is required
+                </mat-error>
+              </mat-form-field>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="requester">
+            <th mat-header-cell *matHeaderCellDef>
+              {{ 'roles.accessOverview.tableHeadings.requester' | transloco }}
+            </th>
+            <td
+              mat-cell
+              *matCellDef="let row; let i = dataIndex"
+              [formGroupName]="getFormArrayIndex(i)">
+              <mat-form-field subscriptSizing="dynamic" appearance="outline">
+                <mat-label>{{
+                  'roles.accessOverview.tableHeadings.requester' | transloco
+                }}</mat-label>
+                <mat-select
+                  formControlName="requester"
+                  multiple
+                  panelWidth="null">
+                  <mat-option
+                    *ngFor="let option of requesterOptions"
+                    [value]="option.value"
+                    >{{ option.label }}</mat-option
+                  >
+                </mat-select>
+              </mat-form-field>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="advancedFilters">
+            <th mat-header-cell *matHeaderCellDef>
+              {{
+                'roles.accessOverview.tableHeadings.advancedFilters' | transloco
+              }}
+            </th>
+            <td
+              mat-cell
+              *matCellDef="let row; let i = dataIndex"
+              [formGroupName]="getFormArrayIndex(i)">
+              <button
+                mat-icon-button
+                color="primary"
+                type="button"
+                (click)="toggleRow(row, getFormArrayIndex(i))">
+                <fa-icon [icon]="faPlus" size="xs"></fa-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>
+              <button
+                mat-mini-fab
+                color="primary"
+                [attr.aria-label]="'newEntry' | transloco"
+                (click)="add()"
+                type="button">
+                <fa-icon [icon]="faPlus" size="xl"></fa-icon>
+              </button>
+            </th>
+            <td
+              mat-cell
+              *matCellDef="let row; let i = dataIndex"
+              [formGroupName]="getFormArrayIndex(i)">
+              <button mat-icon-button (click)="remove(i)">
+                <fa-icon [icon]="faTrashCan" size="xs"></fa-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expandedDetail">
+            <td
+              mat-cell
+              *matCellDef="let element; let i = dataIndex"
+              [attr.colspan]="6"
+              [formGroupName]="getFormArrayIndex(i)">
+              <div
+                class="element-detail"
+                formArrayName="advancedFilters"
+                [@detailExpand]="
+                  element === expandedElement ? 'expanded' : 'collapsed'
+                ">
+                <ng-container
+                  *ngFor="
+                    let advancedFilter of getAdvancedFilters(
+                      getFormArrayIndex(i)
+                    ).controls;
+                    let j = index
+                  ">
+                  <div [formArrayName]="j" class="expandedItems">
+                    <mat-form-field
+                      subscriptSizing="dynamic"
+                      appearance="outline">
+                      <mat-label>Field</mat-label>
+                      <input matInput formControlName="expandField" />
+                    </mat-form-field>
+                    <mat-form-field
+                      subscriptSizing="dynamic"
+                      appearance="outline">
+                      <mat-label>Operator</mat-label>
+                      <mat-select
+                        formControlName="expandOperator"
+                        panelWidth="null">
+                        <mat-option
+                          *ngFor="let option of operatorOptions"
+                          [value]="option.value"
+                          >{{ option.label }}</mat-option
+                        >
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field
+                      subscriptSizing="dynamic"
+                      appearance="outline">
+                      <mat-label>Value</mat-label>
+                      <input formControlName="expandValue" matInput />
+                    </mat-form-field>
+                    <div>
+                      <mat-button-toggle-group
+                        aria-label="Service Definition Type"
+                        formControlName="filterOp"
+                        (change)="filterOpChange($event, getFormArrayIndex(i))">
+                        <mat-button-toggle value="AND">AND</mat-button-toggle>
+                        <mat-button-toggle value="OR">OR</mat-button-toggle>
+                      </mat-button-toggle-group>
+                    </div>
+
+                    <button
+                      mat-icon-button
+                      type="button"
+                      (click)="addAdvancedFilter(getFormArrayIndex(i))">
+                      <fa-icon [icon]="faPlus" size="xs"></fa-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      type="button"
+                      (click)="removeAdvancedFilter(getFormArrayIndex(i), j)">
+                      <fa-icon [icon]="faTrashCan" size="xs"></fa-icon>
+                    </button>
+                  </div>
+                </ng-container>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr
+            mat-header-row
+            *matHeaderRowDef="[
+              'service',
+              'component',
+              'access',
+              'requester',
+              'advancedFilters',
+              'actions',
+            ]"></tr>
+          <tr
+            mat-row
+            *matRowDef="
+              let row;
+              columns: [
+                'service',
+                'component',
+                'access',
+                'requester',
+                'advancedFilters',
+                'actions',
+              ]
+            "></tr>
+          <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell" colspan="4">
+              <br />
+              {{ 'roles.accessOverview.noAccessRules' | transloco }}
+            </td>
+          </tr>
+          <tr
+            mat-row
+            *matRowDef="let row; columns: ['expandedDetail']"
+            class="detail-row"></tr>
+        </table>
+      </ng-container>
+    </mat-expansion-panel>
+  </mat-accordion>
+</div>

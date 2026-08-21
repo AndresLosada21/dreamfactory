@@ -7,6 +7,7 @@ use DreamFactory\Core\Exceptions\NotFoundException;
 use DreamFactory\Core\Models\Service;
 use DreamFactory\Core\System\Resources\BaseSystemResource;
 use DreamFactory\Core\Utility\ResourcesWrapper;
+use DreamFactory\Core\Utility\Session;
 use Yamaha\DreamFactory\NamedQuery\Models\NamedQuery;
 use Yamaha\DreamFactory\NamedQuery\Repositories\NamedQueryRepository;
 
@@ -41,7 +42,7 @@ class NamedQueryAdminResource extends BaseSystemResource
         }
 
         $definition = $this->payload();
-        $query = (new NamedQueryRepository())->create($definition);
+        $query = (new NamedQueryRepository())->create($definition, $this->actorId());
 
         return $query->load('revisions')->toArray();
     }
@@ -62,14 +63,16 @@ class NamedQueryAdminResource extends BaseSystemResource
             return $repository->publish(
                 (int) $this->resource,
                 (int) $payload['publish_revision_id'],
-                (int) $payload['lock_version']
+                (int) $payload['lock_version'],
+                $this->actorId()
             )->toArray();
         }
 
         return $repository->revise(
             (int) $this->resource,
             (int) $payload['lock_version'],
-            $payload
+            $payload,
+            $this->actorId()
         )->toArray();
     }
 
@@ -130,5 +133,12 @@ class NamedQueryAdminResource extends BaseSystemResource
         unset($payload['service_name']);
 
         return $payload;
+    }
+
+    private function actorId(): ?int
+    {
+        $userId = Session::getCurrentUserId();
+
+        return $userId === null ? null : (int) $userId;
     }
 }

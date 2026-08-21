@@ -1,0 +1,11 @@
+import { ROUTES } from './routes';
+
+export interface Nav {
+  path: string;
+  linkPath?: string;
+  labelPath?: string;
+  route: ROUTES;
+  icon?: string;
+  subRoutes?: Nav[];
+  serviceGroups?: Array<string>;
+}

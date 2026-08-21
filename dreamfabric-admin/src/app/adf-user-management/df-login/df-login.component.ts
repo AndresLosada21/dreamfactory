@@ -1,0 +1,233 @@
+import { Component, OnInit } from '@angular/core';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ReactiveFormsModule,
+} from '@angular/forms';
+import { catchError, throwError } from 'rxjs';
+import { DfAuthService } from '../services/df-auth.service';
+import { DfSystemConfigDataService } from '../../shared/services/df-system-config-data.service';
+import {
+  AlertType,
+  DfAlertComponent,
+} from '../../shared/components/df-alert/df-alert.component';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ROUTES } from '../../shared/types/routes';
+import { getIcon, iconExist } from '../../shared/utilities/icons';
+import { LoginCredentials } from '../../shared/types/user-management';
+import { REDIRECT_URL_KEY } from '../../shared/utilities/url';
+
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+import { MatButtonModule } from '@angular/material/button';
+import { MatInputModule } from '@angular/material/input';
+import { MatOptionModule } from '@angular/material/core';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { NgIf, NgFor, NgTemplateOutlet } from '@angular/common';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatCardModule } from '@angular/material/card';
+import { TranslocoPipe } from '@ngneat/transloco';
+import { AuthService, LdapService } from 'src/app/shared/types/service';
+import { UntilDestroy } from '@ngneat/until-destroy';
+import { DfThemeService } from 'src/app/shared/services/df-theme.service';
+import { CommonModule } from '@angular/common';
+import { DfSnackbarService } from 'src/app/shared/services/df-snackbar.service';
+import { PopupOverlayService } from 'src/app/shared/components/df-popup/popup-overlay.service';
+import { normalizeError } from 'src/app/shared/utilities/app-error';
+
+@UntilDestroy({ checkProperties: true })
+@Component({
+  selector: 'df-user-login',
+  templateUrl: './df-login.component.html',
+  styleUrls: ['../adf-user-management.scss', './df-login.component.scss'],
+  standalone: true,
+  imports: [
+    MatCardModule,
+    DfAlertComponent,
+    MatDividerModule,
+    ReactiveFormsModule,
+    NgIf,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatOptionModule,
+    NgFor,
+    MatInputModule,
+    MatButtonModule,
+    NgTemplateOutlet,
+    RouterLink,
+    FontAwesomeModule,
+    TranslocoPipe,
+    CommonModule,
+  ],
+})
+export class DfLoginComponent implements OnInit {
+  private readonly MINIMUM_PASSWORD_LENGTH = 16;
+  alertMsg = '';
+  showAlert = false;
+  alertType: AlertType = 'error';
+  envloginAttribute = 'email';
+  loginAttribute = 'email';
+  ldapServices: LdapService[] = [];
+  oauthServices: AuthService[] = [];
+  samlServices: AuthService[] = [];
+
+  trackByName = (_: number, service: { name: string }): string => service.name;
+
+  fpRoute = `/${ROUTES.AUTH}/${ROUTES.FORGOT_PASSWORD}`;
+
+  isDarkMode = this.themeService.darkMode$;
+
+  loginForm: FormGroup;
+  /** OAuth/SSO error handed over by AppComponent in the navigation itself
+   * (router state), so no shared error bus can race a NavigationStart clear. */
+  private navLoginError: string | null = null;
+  constructor(
+    private fb: FormBuilder,
+    private systemConfigDataService: DfSystemConfigDataService,
+    private authService: DfAuthService,
+    private router: Router,
+    private activatedRoute: ActivatedRoute,
+    private themeService: DfThemeService,
+    private snackbarService: DfSnackbarService,
+    private popupOverlay: PopupOverlayService
+  ) {
+    this.loginForm = this.fb.group({
+      services: [''],
+      username: [''],
+      email: [''],
+      password: ['', [Validators.required]],
+    });
+    const stateError =
+      this.router.getCurrentNavigation()?.extras?.state?.['loginError'] ??
+      history.state?.['loginError'];
+    if (typeof stateError === 'string' && stateError) {
+      this.navLoginError = stateError;
+    }
+  }
+
+  iconExist = iconExist;
+  getIcon = getIcon;
+
+  ngOnInit() {
+    if (this.navLoginError) {
+      // Decode the error message properly (remove URL encoding)
+      this.alertMsg = decodeURIComponent(
+        this.navLoginError.replace(/\+/g, ' ')
+      );
+      this.showAlert = true;
+      this.alertType = 'error';
+    }
+
+    this.systemConfigDataService.environment$.subscribe(env => {
+      this.envloginAttribute = env.authentication.loginAttribute;
+      this.setLoginAttribute(env.authentication.loginAttribute);
+      this.ldapServices = env.authentication.adldap;
+      this.oauthServices = env.authentication.oauth;
+      this.samlServices = env.authentication.saml;
+    });
+
+    this.loginForm.controls['services'].valueChanges.subscribe(
+      (value: string) => {
+        if (value) {
+          this.setLoginAttribute('username');
+        } else {
+          this.setLoginAttribute(this.envloginAttribute);
+        }
+      }
+    );
+    this.snackbarService.setSnackbarLastEle('', false);
+  }
+
+  setLoginAttribute(attribute: string) {
+    this.loginAttribute = attribute;
+    if (attribute === 'username') {
+      this.loginForm.controls['username'].addValidators(Validators.required);
+      this.loginForm.controls['email'].clearValidators();
+    } else {
+      this.loginForm.controls['email'].addValidators([
+        Validators.required,
+        Validators.email,
+      ]);
+      this.loginForm.controls['username'].clearValidators();
+    }
+    this.loginForm.controls['username'].updateValueAndValidity();
+    this.loginForm.controls['email'].updateValueAndValidity();
+  }
+
+  /**
+   * Build the OAuth/SAML SSO URL, preserving any pending external redirect.
+   * When an external redirect URL is stored (e.g. from an MCP OAuth flow),
+   * it is appended as a query parameter so the DreamFactory OAuth callback
+   * can redirect directly to the external caller after authentication.
+   * For normal UI logins (no stored redirect), the URL is returned unchanged.
+   */
+  getOAuthUrl(servicePath: string): string {
+    const base = '/api/v2/' + servicePath;
+    const redirectUrl = sessionStorage.getItem(REDIRECT_URL_KEY);
+    if (!redirectUrl) {
+      return base;
+    }
+    const separator = base.includes('?') ? '&' : '?';
+    return base + separator + 'redirect=' + encodeURIComponent(redirectUrl);
+  }
+
+  login() {
+    if (this.loginForm.invalid) {
+      return;
+    }
+
+    const isPasswordTooShort =
+      this.loginForm.value.password.length < this.MINIMUM_PASSWORD_LENGTH;
+    const credentials: LoginCredentials = {
+      password: this.loginForm.value.password,
+    };
+    if (this.ldapServices.length && this.loginForm.value.services !== '') {
+      credentials.service = this.loginForm.value.services;
+    }
+    if (this.loginAttribute === 'username') {
+      credentials.username = credentials.email = this.loginForm.value.username;
+    } else {
+      credentials.email = this.loginForm.value.email;
+    }
+
+    this.authService
+      .login(credentials)
+      .pipe(
+        catchError(err => {
+          const appError = normalizeError(err);
+          if (appError.status === 401 && isPasswordTooShort) {
+            this.popupOverlay.open({
+              message: `It looks like your password is too short. Our new system requires at least ${this.MINIMUM_PASSWORD_LENGTH} characters. Please reset your password to continue.`,
+              showRemindMeLater: false,
+            });
+          } else {
+            this.alertMsg = appError.message;
+            this.showAlert = true;
+          }
+          return throwError(() => appError);
+        })
+      )
+      .subscribe(() => {
+        this.showAlert = false;
+        if (isPasswordTooShort) {
+          this.popupOverlay.open({
+            message: `Your current password is shorter than recommended (less than ${this.MINIMUM_PASSWORD_LENGTH} characters). For better security, we recommend updating your password to a longer one.`,
+            showRemindMeLater: true,
+          });
+        }
+        // Honor a validated internal returnUrl (set by the 401 interceptor
+        // redirect or loggedInGuard); anything else goes home.
+        const returnUrl = this.activatedRoute.snapshot.queryParams['returnUrl'];
+        if (
+          typeof returnUrl === 'string' &&
+          returnUrl.startsWith('/') &&
+          !returnUrl.startsWith('//')
+        ) {
+          this.router.navigateByUrl(returnUrl);
+        } else {
+          this.router.navigate([ROUTES.HOME]);
+        }
+      });
+  }
+}
