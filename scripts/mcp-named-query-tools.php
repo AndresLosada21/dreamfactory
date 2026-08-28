@@ -1,6 +1,7 @@
 <?php
 /**
- * Registers the generic Named Query MCP custom tools on the "vfdf" MCP service.
+ * Registers the generic Named Query MCP custom tools on the "yamaha-query"
+ * MCP service.
  *
  * Usage (inside the dreamfactory container):
  *   php /opt/dreamfactory/scripts/mcp-named-query-tools.php
