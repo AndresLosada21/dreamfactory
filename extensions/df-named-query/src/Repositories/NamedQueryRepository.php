@@ -11,6 +11,7 @@ use Yamaha\DreamFactory\NamedQuery\Models\NamedQuery;
 use Yamaha\DreamFactory\NamedQuery\Models\NamedQueryRevision;
 use Yamaha\DreamFactory\NamedQuery\Query\NamedSqlCompiler;
 use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
+use Yamaha\DreamFactory\NamedQuery\Services\NamedQueryAudit;
 
 class NamedQueryRepository
 {
@@ -31,24 +32,50 @@ class NamedQueryRepository
     {
         $this->validateDefinition($definition);
         $this->assertServiceExists((int) $definition['service_id']);
+        $start = microtime(true);
 
-        return DB::transaction(function () use ($definition, $actorId) {
-            $attributes = [
-                'service_id' => $definition['service_id'],
-                'name' => $definition['name'],
-                'description' => $definition['description'] ?? null,
-                'is_active' => false,
-                'lock_version' => 1,
-            ];
-            if ($actorId !== null) {
-                $attributes['created_by_id'] = $actorId;
-                $attributes['last_modified_by_id'] = $actorId;
-            }
-            $query = NamedQuery::create($attributes);
-            $this->createRevision($query, $definition, $actorId);
+        try {
+            $result = DB::transaction(function () use ($definition, $actorId) {
+                $attributes = [
+                    'service_id' => $definition['service_id'],
+                    'name' => $definition['name'],
+                    'description' => $definition['description'] ?? null,
+                    'is_active' => false,
+                    'lock_version' => 1,
+                ];
+                if ($actorId !== null) {
+                    $attributes['created_by_id'] = $actorId;
+                    $attributes['last_modified_by_id'] = $actorId;
+                }
+                $query = NamedQuery::create($attributes);
+                $this->createRevision($query, $definition, $actorId);
 
-            return $query->fresh('revisions');
-        });
+                return $query->fresh('revisions');
+            });
+
+            $rev = $result->revisions->last() ?? $result->revisions->first();
+            NamedQueryAudit::recordWithDuration('create', [
+                'actor_id' => $actorId,
+                'service_id' => (int) $definition['service_id'],
+                'query_id' => (int) $result->id,
+                'query_name' => (string) $definition['name'],
+                'revision' => $rev ? (int) $rev->revision : null,
+                'revision_id' => $rev ? (int) $rev->id : null,
+                'checksum' => $rev ? (string) $rev->checksum : null,
+                'budgets' => $definition['budgets'] ?? null,
+            ], $start, 'success');
+
+            return $result;
+        } catch (\Throwable $e) {
+            NamedQueryAudit::recordWithDuration('create', [
+                'actor_id' => $actorId,
+                'service_id' => (int) ($definition['service_id'] ?? 0),
+                'query_name' => (string) ($definition['name'] ?? ''),
+                'budgets' => $definition['budgets'] ?? null,
+            ], $start, 'failure', get_class($e));
+
+            throw $e;
+        }
     }
 
     /**
@@ -66,21 +93,55 @@ class NamedQueryRepository
      */
     public function disable(int $queryId, int $expectedLockVersion, ?int $actorId = null): NamedQuery
     {
-        return DB::transaction(function () use ($queryId, $expectedLockVersion, $actorId) {
-            $query = NamedQuery::lockForUpdate()->find($queryId);
-            if (!$query) {
-                throw new NotFoundException("Named Query '$queryId' was not found.");
-            }
-            $this->assertLockVersion($query, $expectedLockVersion);
-            $query->is_active = false;
-            $query->lock_version++;
-            if ($actorId !== null) {
-                $query->last_modified_by_id = $actorId;
-            }
-            $query->save();
+        $start = microtime(true);
+        $action = 'unpublish';
+        $queryName = null;
+        $serviceId = null;
+        try {
+            $result = DB::transaction(function () use ($queryId, $expectedLockVersion, $actorId) {
+                $query = NamedQuery::lockForUpdate()->find($queryId);
+                if (!$query) {
+                    throw new NotFoundException("Named Query '$queryId' was not found.");
+                }
+                $this->assertLockVersion($query, $expectedLockVersion);
+                $query->is_active = false;
+                $query->lock_version++;
+                if ($actorId !== null) {
+                    $query->last_modified_by_id = $actorId;
+                }
+                $query->save();
 
-            return $query->fresh('publishedRevision');
-        });
+                return $query->fresh('publishedRevision');
+            });
+            $queryName = (string) ($result->name ?? '');
+            $serviceId = (int) ($result->service_id ?? 0);
+            NamedQueryAudit::recordWithDuration($action, [
+                'actor_id' => $actorId,
+                'service_id' => $serviceId,
+                'query_id' => $queryId,
+                'query_name' => $queryName,
+                'budgets' => $result->publishedRevision ? ($result->publishedRevision->budgets ?? null) : null,
+            ], $start, 'success');
+
+            return $result;
+        } catch (\Throwable $e) {
+            // Try to resolve service/name for audit even on failure
+            if ($serviceId === null || $queryName === null) {
+                try {
+                    $q = NamedQuery::find($queryId);
+                    $serviceId = $q ? (int) $q->service_id : $serviceId;
+                    $queryName = $q ? (string) $q->name : $queryName;
+                } catch (\Throwable $ignored) {
+                }
+            }
+            NamedQueryAudit::recordWithDuration($action, [
+                'actor_id' => $actorId,
+                'service_id' => $serviceId,
+                'query_id' => $queryId,
+                'query_name' => $queryName,
+            ], $start, 'failure', get_class($e));
+            throw $e;
+        }
     }
 
     /**
@@ -89,17 +150,44 @@ class NamedQueryRepository
      */
     public function delete(int $queryId, int $expectedLockVersion): void
     {
-        DB::transaction(function () use ($queryId, $expectedLockVersion) {
-            $query = NamedQuery::lockForUpdate()->find($queryId);
-            if (!$query) {
-                throw new NotFoundException("Named Query '$queryId' was not found.");
+        $start = microtime(true);
+        $serviceId = null;
+        $queryName = null;
+        try {
+            DB::transaction(function () use ($queryId, $expectedLockVersion, &$serviceId, &$queryName) {
+                $query = NamedQuery::lockForUpdate()->find($queryId);
+                if (!$query) {
+                    throw new NotFoundException("Named Query '$queryId' was not found.");
+                }
+                $this->assertLockVersion($query, $expectedLockVersion);
+                $serviceId = (int) $query->service_id;
+                $queryName = (string) $query->name;
+                // Detach published revision first: FK named_query.published_revision_id ON DELETE RESTRICT.
+                $query->published_revision_id = null;
+                $query->save();
+                $query->delete();
+            });
+            NamedQueryAudit::recordWithDuration('delete', [
+                'service_id' => $serviceId,
+                'query_id' => $queryId,
+                'query_name' => $queryName,
+            ], $start, 'success');
+        } catch (\Throwable $e) {
+            if ($serviceId === null || $queryName === null) {
+                try {
+                    $q = NamedQuery::find($queryId);
+                    $serviceId = $q ? (int) $q->service_id : $serviceId;
+                    $queryName = $q ? (string) $q->name : $queryName;
+                } catch (\Throwable $ignored) {
+                }
             }
-            $this->assertLockVersion($query, $expectedLockVersion);
-            // Detach published revision first: FK named_query.published_revision_id ON DELETE RESTRICT.
-            $query->published_revision_id = null;
-            $query->save();
-            $query->delete();
-        });
+            NamedQueryAudit::recordWithDuration('delete', [
+                'service_id' => $serviceId,
+                'query_id' => $queryId,
+                'query_name' => $queryName,
+            ], $start, 'failure', get_class($e));
+            throw $e;
+        }
     }
 
     /**
@@ -109,92 +197,141 @@ class NamedQueryRepository
     public function revise(int $queryId, int $expectedLockVersion, array $definition, ?int $actorId = null): NamedQueryRevision
     {
         $this->validateDefinition($definition);
+        $start = microtime(true);
+        try {
+            $revision = DB::transaction(function () use ($queryId, $expectedLockVersion, $definition, $actorId) {
+                $query = NamedQuery::lockForUpdate()->find($queryId);
+                if (!$query) {
+                    throw new NotFoundException("Named Query '$queryId' was not found.");
+                }
+                $this->assertLockVersion($query, $expectedLockVersion);
+                if ((int) $definition['service_id'] !== (int) $query->service_id) {
+                    throw new BadRequestException('A Named Query cannot change its source service.');
+                }
+                if ($definition['name'] !== $query->name) {
+                    throw new BadRequestException('A Named Query cannot change its endpoint name.');
+                }
 
-        return DB::transaction(function () use ($queryId, $expectedLockVersion, $definition, $actorId) {
-            $query = NamedQuery::lockForUpdate()->find($queryId);
-            if (!$query) {
-                throw new NotFoundException("Named Query '$queryId' was not found.");
-            }
-            $this->assertLockVersion($query, $expectedLockVersion);
-            if ((int) $definition['service_id'] !== (int) $query->service_id) {
-                throw new BadRequestException('A Named Query cannot change its source service.');
-            }
-            if ($definition['name'] !== $query->name) {
-                throw new BadRequestException('A Named Query cannot change its endpoint name.');
-            }
+                // RQ-021 gate also on revise: fail fast if revision demands unsupported cap
+                $service = Service::find($query->service_id);
+                if ($service) {
+                    DialectCapabilities::assertSupportedForServiceType((string) $service->type, $definition);
+                }
 
-            // RQ-021 gate also on revise: fail fast if revision demands unsupported cap
-            $service = Service::find($query->service_id);
-            if ($service) {
-                DialectCapabilities::assertSupportedForServiceType((string) $service->type, $definition);
-            }
+                $rev = $this->createRevision($query, $definition, $actorId);
+                if (array_key_exists('description', $definition)) {
+                    $query->description = $definition['description'] ?: null;
+                }
+                $query->lock_version++;
+                if ($actorId !== null) {
+                    $query->last_modified_by_id = $actorId;
+                }
+                $query->save();
 
-            $revision = $this->createRevision($query, $definition, $actorId);
-            if (array_key_exists('description', $definition)) {
-                $query->description = $definition['description'] ?: null;
-            }
-            $query->lock_version++;
-            if ($actorId !== null) {
-                $query->last_modified_by_id = $actorId;
-            }
-            $query->save();
-
+                return $rev;
+            });
+            NamedQueryAudit::recordWithDuration('revise', [
+                'actor_id' => $actorId,
+                'service_id' => (int) $definition['service_id'],
+                'query_id' => $queryId,
+                'query_name' => (string) $definition['name'],
+                'revision' => (int) $revision->revision,
+                'revision_id' => (int) $revision->id,
+                'checksum' => (string) $revision->checksum,
+                'budgets' => $definition['budgets'] ?? null,
+            ], $start, 'success');
             return $revision;
-        });
+        } catch (\Throwable $e) {
+            NamedQueryAudit::recordWithDuration('revise', [
+                'actor_id' => $actorId,
+                'service_id' => isset($definition['service_id']) ? (int) $definition['service_id'] : null,
+                'query_id' => $queryId,
+                'query_name' => (string) ($definition['name'] ?? ''),
+                'budgets' => $definition['budgets'] ?? null,
+            ], $start, 'failure', get_class($e));
+            throw $e;
+        }
     }
 
     public function publish(int $queryId, int $revisionId, int $expectedLockVersion, ?int $actorId = null): NamedQuery
     {
-        return DB::transaction(function () use ($queryId, $revisionId, $expectedLockVersion, $actorId) {
-            $query = NamedQuery::lockForUpdate()->find($queryId);
-            if (!$query) {
-                throw new NotFoundException("Named Query '$queryId' was not found.");
-            }
-            $this->assertLockVersion($query, $expectedLockVersion);
+        $start = microtime(true);
+        try {
+            $result = DB::transaction(function () use ($queryId, $revisionId, $expectedLockVersion, $actorId) {
+                $query = NamedQuery::lockForUpdate()->find($queryId);
+                if (!$query) {
+                    throw new NotFoundException("Named Query '$queryId' was not found.");
+                }
+                $this->assertLockVersion($query, $expectedLockVersion);
 
-            $revision = NamedQueryRevision::where('id', $revisionId)
-                ->where('named_query_id', $query->id)
-                ->first();
-            if (!$revision) {
-                throw new NotFoundException("Revision '$revisionId' was not found for Named Query '$queryId'.");
-            }
+                $revision = NamedQueryRevision::where('id', $revisionId)
+                    ->where('named_query_id', $query->id)
+                    ->first();
+                if (!$revision) {
+                    throw new NotFoundException("Revision '$revisionId' was not found for Named Query '$queryId'.");
+                }
 
-            // RQ-031 — publish falha se SQL não for read-only (corpus comments/terminadores).
-            // Defense-in-depth: repository revalida além do validateDefinition do revise.
-            // Se definição futura pedir mutação, exige flag explícita NAMED_QUERY_ALLOW_MUTATION.
-            $allowMutation = is_array($revision->parameters) && !empty($revision->parameters) && false;
-            // legado: definição com allow_mutation=true (futura) — sem flag, publish falha
-            $def = is_array($revision->parameters) ? $revision->parameters : [];
-            // check if any definition signals mutation (future extension: budgets.allow_mutation or parameters meta)
-            $wantsMutation = (is_array($revision->budgets) && !empty($revision->budgets['allow_mutation']));
-            if ($wantsMutation) {
-                (new NamedSqlCompiler())->assertReadOnly((string) $revision->sql, true);
-            } else {
-                (new NamedSqlCompiler())->assertReadOnly((string) $revision->sql);
-            }
+                // RQ-031 — publish falha se SQL não for read-only (corpus comments/terminadores).
+                // Defense-in-depth: repository revalida além do validateDefinition do revise.
+                // Se definição futura pedir mutação, exige flag explícita NAMED_QUERY_ALLOW_MUTATION.
+                $allowMutation = is_array($revision->parameters) && !empty($revision->parameters) && false;
+                // legado: definição com allow_mutation=true (futura) — sem flag, publish falha
+                $def = is_array($revision->parameters) ? $revision->parameters : [];
+                // check if any definition signals mutation (future extension: budgets.allow_mutation or parameters meta)
+                $wantsMutation = (is_array($revision->budgets) && !empty($revision->budgets['allow_mutation']));
+                if ($wantsMutation) {
+                    (new NamedSqlCompiler())->assertReadOnly((string) $revision->sql, true);
+                } else {
+                    (new NamedSqlCompiler())->assertReadOnly((string) $revision->sql);
+                }
 
-            // RQ-021 — Bloquear publish se feature exigida não é suportada pelo driver do service_id.
-            // Capabilities consultáveis (DialectCapabilities::forServiceId) — contrato independente do driver.
-            $service = Service::find($query->service_id);
-            if ($service) {
-                DialectCapabilities::assertSupportedForServiceType((string) $service->type, [
-                    'sql' => (string) $revision->sql,
-                    'parameters' => $revision->parameters ?? [],
-                    'output_schema' => $revision->output_schema ?? [],
-                    'budgets' => $revision->budgets ?? [],
-                ]);
-            }
+                // RQ-021 — Bloquear publish se feature exigida não é suportada pelo driver do service_id.
+                // Capabilities consultáveis (DialectCapabilities::forServiceId) — contrato independente do driver.
+                $service = Service::find($query->service_id);
+                if ($service) {
+                    DialectCapabilities::assertSupportedForServiceType((string) $service->type, [
+                        'sql' => (string) $revision->sql,
+                        'parameters' => $revision->parameters ?? [],
+                        'output_schema' => $revision->output_schema ?? [],
+                        'budgets' => $revision->budgets ?? [],
+                    ]);
+                }
 
-            $query->published_revision_id = $revision->id;
-            $query->is_active = true;
-            $query->lock_version++;
-            if ($actorId !== null) {
-                $query->last_modified_by_id = $actorId;
-            }
-            $query->save();
+                $query->published_revision_id = $revision->id;
+                $query->is_active = true;
+                $query->lock_version++;
+                if ($actorId !== null) {
+                    $query->last_modified_by_id = $actorId;
+                }
+                $query->save();
 
-            return $query->fresh('publishedRevision');
-        });
+                return $query->fresh('publishedRevision');
+            });
+            $rev = $result->publishedRevision;
+            NamedQueryAudit::recordWithDuration('publish', [
+                'actor_id' => $actorId,
+                'service_id' => (int) $result->service_id,
+                'query_id' => (int) $result->id,
+                'query_name' => (string) $result->name,
+                'revision' => $rev ? (int) $rev->revision : null,
+                'revision_id' => $rev ? (int) $rev->id : null,
+                'checksum' => $rev ? (string) $rev->checksum : null,
+                'budgets' => $rev ? ($rev->budgets ?? null) : null,
+            ], $start, 'success');
+            return $result;
+        } catch (\Throwable $e) {
+            // Best-effort ids for audit on failure
+            $sid = null; $qname = null;
+            try { $q = NamedQuery::find($queryId); $sid = $q ? (int) $q->service_id : null; $qname = $q ? (string) $q->name : null; } catch (\Throwable $ignored) {}
+            NamedQueryAudit::recordWithDuration('publish', [
+                'actor_id' => $actorId,
+                'service_id' => $sid,
+                'query_id' => $queryId,
+                'query_name' => $qname,
+                'revision_id' => $revisionId,
+            ], $start, 'failure', get_class($e));
+            throw $e;
+        }
     }
 
     private function createRevision(NamedQuery $query, array $definition, ?int $actorId): NamedQueryRevision

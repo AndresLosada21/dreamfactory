@@ -32,6 +32,18 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
         $this->app->alias(DialectCapabilities::class, 'df.named-query.capabilities');
 
         $this->app->resolving('df.system.resource', function (SystemResourceManager $resources) {
+            $existing = $resources->getResourceType('named_query');
+            if ($existing !== null) {
+                $existingClass = $existing->getClassName();
+                if ($existingClass !== NamedQueryAdminResource::class) {
+                    throw new \RuntimeException(
+                        "Service resource type 'named_query' collision: already registered as '$existingClass', cannot register as '" . NamedQueryAdminResource::class . "'. " .
+                        "Remove the incompatible package or rename the conflicting type."
+                    );
+                }
+
+                return;
+            }
             $resources->addType(new SystemResourceType([
                 'name' => 'named_query',
                 'label' => 'Named Queries',
@@ -41,6 +53,18 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
         });
 
         $this->app->resolving('df.service', function (ServiceManager $services) {
+            $existing = $services->getServiceType('pgsql_query');
+            if ($existing !== null) {
+                $existingHandler = $existing->getConfigHandler();
+                if ($existingHandler !== null && $existingHandler !== PgSqlDbConfig::class) {
+                    throw new \RuntimeException(
+                        "Service type 'pgsql_query' collision: already registered with config_handler '$existingHandler', cannot register as '" . PgSqlDbConfig::class . "'. " .
+                        "Remove the incompatible package providing the conflicting type."
+                    );
+                }
+
+                return;
+            }
             $services->addType(new ServiceType([
                 'name' => 'pgsql_query',
                 'label' => 'PostgreSQL with Named Queries',
