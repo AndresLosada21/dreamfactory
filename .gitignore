@@ -47,3 +47,7 @@ after.sh
 
 # Local-only helper that may contain environment-specific MCP credentials.
 /scripts/mcp-mint-static-token.php
+
+# Local-only MCP config and deployment artifacts for offline builds.
+deployment-artifacts/
+dreamfabric-admin/frontend-proxy.hot.json
