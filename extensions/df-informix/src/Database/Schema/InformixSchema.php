@@ -19,6 +19,7 @@ class InformixSchema extends SqlSchema
 
     public function getSchemas()
     {
+        // RQ-024: systables/syscolumns catalog, owner-scoped via tabowner; real Pymac tables use lymdaact/de_int_im patterns.
         $schemas = $this->selectColumn(<<<'SQL'
 SELECT DISTINCT tabowner
 FROM systables

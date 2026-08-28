@@ -21,6 +21,7 @@ class SqlServerSchema extends SqlSchema
 
     public function getSchemas()
     {
+        // RQ-022: metadata via sys.* (sys.schemas/sys.tables/sys.views), named binds :schema.
         return $this->selectColumn(<<<'SQL'
 SELECT DISTINCT s.name
 FROM sys.schemas s
@@ -52,6 +53,7 @@ SQL
             return [];
         }
 
+        // RQ-022: sys.tables + sys.schemas, named bind :schema, identity/rowversion inside loadTableColumns.
         $rows = $this->connection->select(<<<'SQL'
 SELECT s.name AS schema_name, t.name AS resource_name
 FROM sys.tables t
@@ -245,6 +247,9 @@ SQL
 
     private function mapType($dataType, $size, $precision)
     {
+        // RQ-022: explicit handling for identity (is_identity), rowversion/timestamp,
+        // datetimeoffset -> TYPE_TIMESTAMP_TZ, uniqueidentifier (GUID) -> TYPE_UUID,
+        // and result-set yielding types (binds via PDO named params).
         switch ($dataType) {
             case 'bit':
                 return DbSimpleTypes::TYPE_BOOLEAN;

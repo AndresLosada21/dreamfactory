@@ -9,6 +9,7 @@ use DreamFactory\Core\Resources\BaseRestResource;
 use DreamFactory\Core\Utility\ResourcesWrapper;
 use Yamaha\DreamFactory\NamedQuery\Models\NamedQuery;
 use Yamaha\DreamFactory\NamedQuery\Query\NamedSqlCompiler;
+use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
 
 class NamedQueryResource extends BaseRestResource
 {
@@ -21,7 +22,32 @@ class NamedQueryResource extends BaseRestResource
 
     protected function handleGET()
     {
+        // RQ-021 — capacidades consultáveis pela UI/engine.
+        // GET /api/v2/{service}/_query/capabilities  e  GET /api/v2/{service}/_query?capabilities=true
+        $query = $this->request->getParameters();
+        if ($this->resource === 'capabilities' || isset($query['capabilities'])) {
+            $this->checkPermission(Verbs::GET);
+
+            return $this->capabilitiesPayload();
+        }
+
         if (empty($this->resource)) {
+            // Metadata do service inclui capacidades (sem round-trip extra)
+            $check = $query['include_capabilities'] ?? null;
+            if ($check !== null) {
+                $this->checkPermission(Verbs::GET);
+
+                return [
+                    'resource' => NamedQuery::forService($this->getServiceId())
+                        ->where('is_active', true)
+                        ->whereNotNull('published_revision_id')
+                        ->orderBy('name')
+                        ->get(['name', 'description'])
+                        ->toArray(),
+                    'capabilities' => $this->capabilitiesPayload(),
+                ];
+            }
+
             $this->checkPermission(Verbs::GET);
 
             $queries = NamedQuery::forService($this->getServiceId())
@@ -32,6 +58,12 @@ class NamedQueryResource extends BaseRestResource
                 ->toArray();
 
             return ResourcesWrapper::cleanResources($queries, false, 'name');
+        }
+
+        if ($this->resource === 'capabilities') {
+            $this->checkPermission(Verbs::GET);
+
+            return $this->capabilitiesPayload();
         }
 
         return $this->execute($this->request->getParameters());
@@ -118,6 +150,35 @@ class NamedQueryResource extends BaseRestResource
         }
 
         return $resource;
+    }
+
+    private function capabilitiesPayload(): array
+    {
+        // Contrato independente do driver — usa tipo do serviço (pgsql_query|oracle|sqlsrv|informix).
+        $service = $this->parent;
+        $serviceType = null;
+        if (is_object($service) && method_exists($service, 'getServiceTypeInfo')) {
+            $info = $service->getServiceTypeInfo();
+            $serviceType = is_object($info) && isset($info->name) ? (string) $info->name : null;
+        }
+        if (!$serviceType && is_object($service) && isset($service->name)) {
+            // Fallback: service name may imply type in tests
+            $serviceType = (string) $service->name;
+        }
+        // Resolve driver from service type; if unknown default to pgsql (most permissive)
+        try {
+            if ($serviceType) {
+                return DialectCapabilities::payloadForServiceType($serviceType);
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+        // Fallback: expose all drivers for UI discovery
+        return [
+            'driver' => $serviceType ?? 'unknown',
+            'capabilities' => DialectCapabilities::all()[$serviceType ?? 'pgsql'] ?? DialectCapabilities::forDriver('pgsql'),
+            'all_drivers' => DialectCapabilities::all(),
+        ];
     }
 
     private function maxRows(array $budgets): int

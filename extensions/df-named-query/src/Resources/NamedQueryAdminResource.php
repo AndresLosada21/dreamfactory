@@ -59,6 +59,23 @@ class NamedQueryAdminResource extends BaseSystemResource
         }
 
         $repository = new NamedQueryRepository();
+
+        // RQ-020 — rename bloqueado (imutabilidade do endpoint), disable via is_active.
+        if (array_key_exists('is_active', $payload) && !$payload['is_active']) {
+            return $repository->disable(
+                (int) $this->resource,
+                (int) $payload['lock_version'],
+                $this->actorId()
+            )->toArray();
+        }
+        if (isset($payload['name']) && ctype_digit((string) $this->resource)) {
+            $existing = NamedQuery::find($this->resource);
+            if ($existing && $payload['name'] !== $existing->name) {
+                // RQ-020 — rename não é permitido; endpoint name é imutável.
+                throw new BadRequestException('A Named Query cannot be renamed. Delete and recreate it to change the endpoint name.');
+            }
+        }
+
         if (isset($payload['publish_revision_id'])) {
             return $repository->publish(
                 (int) $this->resource,
@@ -82,11 +99,35 @@ class NamedQueryAdminResource extends BaseSystemResource
             throw new NotFoundException('A Named Query identifier is required.');
         }
 
+        // RQ-020 — delete validado com lock_version (optimistic locking) e sem duplicar credenciais.
+        // payload()-aware: lock_version pode vir em body (ResourcesWrapper) ou query param.
+        $payload = null;
+        try {
+            $payload = $this->payload();
+        } catch (\Throwable $e) {
+            // payload() exige objeto; para DELETE tolera ausência — tenta parâmetros da request.
+        }
+        $expectedLockVersion = null;
+        if (is_array($payload) && isset($payload['lock_version'])) {
+            $expectedLockVersion = (int) $payload['lock_version'];
+        } elseif ($this->request && method_exists($this->request, 'getParameters')) {
+            $params = $this->request->getParameters();
+            if (isset($params['lock_version'])) {
+                $expectedLockVersion = (int) $params['lock_version'];
+            }
+        }
+        if ($expectedLockVersion !== null) {
+            (new NamedQueryRepository())->delete((int) $this->resource, $expectedLockVersion);
+
+            return ['success' => true];
+        }
+
         $query = NamedQuery::find($this->resource);
         if (!$query) {
             throw new NotFoundException("Named Query '{$this->resource}' was not found.");
         }
 
+        // Sem lock_version explícito mantém compat; mas documenta que o caminho canônico é com lock.
         // Detach the published revision first: the FK from named_query to
         // named_query_revision is ON DELETE RESTRICT and would block the delete.
         $query->published_revision_id = null;

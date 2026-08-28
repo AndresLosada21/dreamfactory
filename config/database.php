@@ -42,6 +42,8 @@ return [
         ],
 
         'pgsql' => [
+            // RQ-025: PostgreSQL pool configurável — tuning via DB_* env ou ServiceConfig.options/attributes.
+            // Para pool externo use host/port do pgbouncer; para PDO persistent use options PDO::ATTR_PERSISTENT.
             'driver' => 'pgsql',
             'url' => env('DB_URL', null),
             'host' => env('DB_HOST', '127.0.0.1'),
@@ -52,9 +54,13 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => env('DB_PREFIX', ''),
             'schema' => 'public',
-            'sslmode' => 'prefer',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            'search_path' => env('DB_SEARCH_PATH', 'public'),
+            // RQ-025: pool/tuning — honra ServiceConfig.options/attributes/statements quando via pgsql_query.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                \PDO::ATTR_TIMEOUT => env('DB_ATTR_TIMEOUT'),
+            ]) : [],
         ],
 
         'sqlsrv' => [

@@ -32,7 +32,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
             $services->addType(new ServiceType([
                 'name' => 'informix',
                 'label' => 'Informix',
-                'description' => 'Independent Informix database service using PDO Informix.',
+                'description' => 'Independent Informix database service using PDO Informix. Requires pdo_informix and IBM Informix CSDK (external, not redistributed). Fails explicitly if extension is missing.',
                 'group' => ServiceTypeGroups::DATABASE,
                 'config_handler' => InformixConfig::class,
                 'factory' => function (array $config) {

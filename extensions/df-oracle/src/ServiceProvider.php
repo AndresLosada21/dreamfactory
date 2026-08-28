@@ -24,7 +24,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
             $services->addType(new ServiceType([
                 'name' => 'oracle',
                 'label' => 'Oracle',
-                'description' => 'Independent Oracle database service using OCI8.',
+                'description' => 'Independent Oracle database service using OCI8 via yajra/laravel-oci8 (MIT). Requires Oracle Instant Client and oci8 extension (external, not redistributed).',
                 'group' => ServiceTypeGroups::DATABASE,
                 'config_handler' => OracleConfig::class,
                 'factory' => function (array $config) {

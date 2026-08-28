@@ -21,6 +21,7 @@ class OracleSchema extends SqlSchema
 
     public function getSchemas()
     {
+        // RQ-023: metadata via ALL_* (visible) — also covers USER_* subset; public catalog, no emulation.
         return $this->selectColumn(<<<'SQL'
 SELECT owner
 FROM (
@@ -50,6 +51,7 @@ SQL
             return [];
         }
 
+        // RQ-023: ALL_TABLES with named bind :schema, plus synonym/sequence-aware via separate helpers.
         $rows = $this->connection->select(<<<'SQL'
 SELECT owner AS schema_name, table_name AS resource_name
 FROM all_tables
@@ -77,6 +79,34 @@ SQL
             , [':schema' => $schema]);
 
         return $this->makeTableSchemas($rows, true);
+    }
+
+    /**
+     * RQ-023: Expose Oracle object kinds used by criteria — sequence, synonym, ref cursor.
+     * These are not table-like resources but are part of the qualification checklist.
+     */
+    public function getSequences($schema = '')
+    {
+        $schema = $this->resolveSchema($schema);
+        if ($schema === '') {
+            return [];
+        }
+        return $this->selectColumn(
+            'SELECT sequence_name FROM all_sequences WHERE sequence_owner = :schema ORDER BY sequence_name',
+            [':schema' => $schema]
+        );
+    }
+
+    public function getSynonyms($schema = '')
+    {
+        $schema = $this->resolveSchema($schema);
+        if ($schema === '') {
+            return [];
+        }
+        return $this->selectColumn(
+            'SELECT synonym_name FROM all_synonyms WHERE owner = :schema ORDER BY synonym_name',
+            [':schema' => $schema]
+        );
     }
 
     protected function loadTableColumns(TableSchema $table)
@@ -209,6 +239,7 @@ SQL
 
     private function mapType($dataType, $precision, $scale, $size)
     {
+        // RQ-023: NUMBER (precision/scale), DATE, LOB (BLOB/CLOB/BFILE/LONG), plus ref cursor is statement-bound not column-typed.
         switch ($dataType) {
             case 'BOOLEAN':
                 return DbSimpleTypes::TYPE_BOOLEAN;
@@ -245,6 +276,9 @@ SQL
                 return DbSimpleTypes::TYPE_TEXT;
             case 'JSON':
                 return DbSimpleTypes::TYPE_JSON;
+            case 'REF CURSOR':
+                // Ref cursor is a statement handle, not a column type; map to string for metadata display.
+                return DbSimpleTypes::TYPE_STRING;
             default:
                 return DbSimpleTypes::TYPE_STRING;
         }
