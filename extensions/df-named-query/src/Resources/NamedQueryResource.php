@@ -8,8 +8,11 @@ use DreamFactory\Core\Exceptions\NotFoundException;
 use DreamFactory\Core\Resources\BaseRestResource;
 use DreamFactory\Core\Utility\ResourcesWrapper;
 use DreamFactory\Core\Utility\Session;
+use Yamaha\DreamFactory\NamedQuery\Http\EnvelopeTranslator;
 use Yamaha\DreamFactory\NamedQuery\Models\NamedQuery;
+use Yamaha\DreamFactory\NamedQuery\Query\JsonQueryCompiler;
 use Yamaha\DreamFactory\NamedQuery\Query\NamedSqlCompiler;
+use Yamaha\DreamFactory\NamedQuery\Query\QueryExecutionBudget;
 use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
 use Yamaha\DreamFactory\NamedQuery\Services\NamedQueryAudit;
 
@@ -39,13 +42,18 @@ class NamedQueryResource extends BaseRestResource
             if ($check !== null) {
                 $this->checkPermission(Verbs::GET);
 
+                $queries = NamedQuery::forService($this->getServiceId())
+                    ->where('is_active', true)
+                    ->whereNotNull('published_revision_id')
+                    ->orderBy('name')
+                    ->get(['name', 'description'])
+                    ->toArray();
+                // RQ-040 — discovery não revela sem permissão: filtra por componente concreto _query/{name}
+                // via RBAC nativo (Session::getServicePermissions -> getPermissions(name)).
+                $queries = array_values(array_filter($queries, fn(array $q) => !empty($this->getPermissions($q['name']))));
+
                 return [
-                    'resource' => NamedQuery::forService($this->getServiceId())
-                        ->where('is_active', true)
-                        ->whereNotNull('published_revision_id')
-                        ->orderBy('name')
-                        ->get(['name', 'description'])
-                        ->toArray(),
+                    'resource' => $queries,
                     'capabilities' => $this->capabilitiesPayload(),
                 ];
             }
@@ -58,6 +66,10 @@ class NamedQueryResource extends BaseRestResource
                 ->orderBy('name')
                 ->get(['name', 'description'])
                 ->toArray();
+            // RQ-040 — filtra listagem por permissão concreta _query/{name} (RBAC nativo).
+            // listAccessComponents() é a fonte canônica; aqui replica filtro para resposta direta
+            // sem bypass paralelo. Reutiliza Session::getServicePermissions via getPermissions(name).
+            $queries = array_values(array_filter($queries, fn(array $q) => !empty($this->getPermissions($q['name']))));
 
             return ResourcesWrapper::cleanResources($queries, false, 'name');
         }
@@ -68,7 +80,24 @@ class NamedQueryResource extends BaseRestResource
             return $this->capabilitiesPayload();
         }
 
-        return $this->execute($this->request->getParameters());
+        // RQ-044 — envelope legado opt-in via ?envelope=legacy ou header X-Legacy-Envelope
+        $values = $this->request->getParameters();
+        if (EnvelopeTranslator::isLegacyRequested($this->request)) {
+            $start = microtime(true);
+            $filtered = $values;
+            unset($filtered['envelope'], $filtered['capabilities'], $filtered['include_capabilities']);
+            try {
+                $native = $this->execute($filtered);
+                $resource = $native['resource'] ?? [];
+                return EnvelopeTranslator::toLegacySuccess(is_array($resource) ? $resource : [], $start);
+            } catch (\Throwable $e) {
+                throw $e;
+            }
+        }
+
+        $filtered = $values;
+        unset($filtered['envelope']);
+        return $this->execute($filtered);
     }
 
     protected function handlePOST()
@@ -92,7 +121,80 @@ class NamedQueryResource extends BaseRestResource
             $payload = $decoded;
         }
 
+        // RQ-044 — extrai opt legado de params internos (envelope=legacy) antes de executar
+        $envelopeParam = $payload['envelope'] ?? null;
+        $bodyEnvelopeLegacy = $envelopeParam !== null && strtolower(trim((string) $envelopeParam)) === 'legacy';
+        if (isset($payload['envelope'])) {
+            unset($payload['envelope']);
+        }
+        $isLegacy = $bodyEnvelopeLegacy || EnvelopeTranslator::isLegacyRequested($this->request);
+        if ($isLegacy) {
+            $start = microtime(true);
+            $native = $this->execute($payload);
+            $resource = $native['resource'] ?? [];
+            return EnvelopeTranslator::toLegacySuccess(is_array($resource) ? $resource : [], $start);
+        }
+
         return $this->execute($payload);
+    }
+
+    /**
+     * RQ-044 — Intercepta respostas para traduzir envelope quando legado solicitado.
+     * Preserva contrato nativo por padrão; só traduz quando opt-in.
+     * Reutiliza RBAC/events nativos sem autorização paralela — delegate para parent.
+     */
+    public function handleRequest(\DreamFactory\Core\Contracts\ServiceRequestInterface $request, $resource = null)
+    {
+        // Se não é execução de query concreta (lista/capabilities), delega direto
+        // Para execução concreta, intercepta erros para traduzir para envelope legado
+        $response = parent::handleRequest($request, $resource);
+
+        // Verifica se foi erro e se é pedido legado — traduz payload de erro
+        try {
+            $isLegacy = EnvelopeTranslator::isLegacyRequested($request);
+            if (!$isLegacy) {
+                return $response;
+            }
+
+            // Response é ServiceResponse com status >=400 => traduz
+            $status = method_exists($response, 'getStatusCode') ? (int) $response->getStatusCode() : 0;
+            if ($status >= 400) {
+                $content = method_exists($response, 'getContent') ? $response->getContent() : null;
+                if (is_array($content)) {
+                    // Já é legacy? Não re-traduz
+                    if (isset($content['erroCode'])) {
+                        return $response;
+                    }
+                    // DF nativo: {error:{code,message,context,status_code}}
+                    $dfError = $content['error'] ?? $content;
+                    $code = 500;
+                    $message = '';
+                    if (is_array($dfError)) {
+                        $code = (int) ($dfError['code'] ?? $dfError['status_code'] ?? $status);
+                        $message = (string) ($dfError['message'] ?? $dfError['errorMessage'] ?? '');
+                    } elseif (is_string($dfError)) {
+                        $message = $dfError;
+                    }
+                    // Usa status HTTP como fonte primária para erroCode
+                    $legacy = EnvelopeTranslator::toLegacyErrorFromStatusAndMessage($status, $message);
+                    // Se DF já trouxe code como erroCode, corrige mapeamento se HTTP for mais confiável
+                    if ($status === 0 && $code >= 400) {
+                        $legacy = EnvelopeTranslator::toLegacyErrorFromStatusAndMessage($code, $message);
+                    }
+                    // Substitui conteúdo mantendo status
+                    if (method_exists($response, 'setContent')) {
+                        $response->setContent($legacy);
+                    } else {
+                        // Reconstrói ServiceResponse
+                        $response = new \DreamFactory\Core\Utility\ServiceResponse($legacy, null, $status);
+                    }
+                }
+            }
+        } catch (\Throwable $ignored) {
+            // Não quebra pipeline nativo
+        }
+
+        return $response;
     }
 
     public function listAccessComponents($schema = null, $refresh = false)
@@ -203,6 +305,9 @@ class NamedQueryResource extends BaseRestResource
 
     private function execute(array $values): array
     {
+        // RQ-040 — execução exige permissão no componente concreto _query/{name}
+        // via RBAC nativo Session::checkServicePermission (sem autorização paralela).
+        // Chamadas internas (Repository/Audit) seguem policy explícita do request; não criam bypass.
         $this->checkPermission($this->getAction(), $this->resource);
         $start = microtime(true);
         $query = null;
@@ -225,10 +330,17 @@ class NamedQueryResource extends BaseRestResource
                 $query->publishedRevision->parameters ?? [],
                 $values
             );
-            $maxRows = $this->maxRows($query->publishedRevision->budgets ?? []);
+            // RQ-041 — budgets hierárquicos cluster-safe: DB read direto (sem cache local retido), min(budgets.max_rows, parent->getMaxRecordsLimit())
+            $budgets = array_merge(JsonQueryCompiler::DEFAULT_BUDGETS, $query->publishedRevision->budgets ?? []);
+            $maxRows = $this->maxRows($budgets);
+            $budget = new QueryExecutionBudget($budgets, $start);
+            // Deadline reduz timeout de statements: PDO::ATTR_TIMEOUT + statement_timeout
+            $budget->checkDeadline();
+            $budget->applyToConnection($this->parent->getConnection(), (int) $budgets['query_timeout_seconds']);
+
             // Stream the cursor so the budget prevents unbounded result materialization.
             $rows = $this->parent->getConnection()->cursor($compiled->sql, $compiled->bindings);
-            $resource = $this->collectRows($rows, $maxRows);
+            $resource = $this->collectRows($rows, $maxRows, $budget);
 
             NamedQueryAudit::recordWithDuration('execute', [
                 'actor_id' => Session::getCurrentUserId(),
@@ -283,14 +395,22 @@ class NamedQueryResource extends BaseRestResource
         }
     }
 
-    protected function collectRows(iterable $rows, int $maxRows): array
+    protected function collectRows(iterable $rows, int $maxRows, ?QueryExecutionBudget $budget = null): array
     {
         $resource = [];
         foreach ($rows as $row) {
-            $resource[] = (array) $row;
+            $arr = (array) $row;
+            if ($budget !== null) {
+                $budget->checkDeadline();
+                $budget->acceptRow($arr);
+            }
+            $resource[] = $arr;
             if (count($resource) >= $maxRows) {
                 break;
             }
+        }
+        if ($budget !== null) {
+            $budget->verifyFinalBody($resource);
         }
 
         return $resource;

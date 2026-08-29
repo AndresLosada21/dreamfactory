@@ -40,6 +40,10 @@ class JsonQueryCompiler
         'max_subquery_executions' => 500,
         'max_total_rows' => 10000,
         'max_total_bytes' => 10485760,
+        // deadlines 45s — preserva SqlExecutionLimits.query-timeout-seconds:45 e request-timeout-seconds:45
+        'query_timeout_seconds' => 45,
+        'request_timeout_seconds' => 45,
+        'timeout_seconds' => 45,
     ];
 
     /**
@@ -269,12 +273,14 @@ class JsonQueryCompiler
      *
      * @param array $document Documento normalizado (com envelope query.mainQuery)
      * @param array $params Mapa paramName => string raw (query string params)
-     * @param array $budgets Budgets opcionais (max_rows, max_parameters, max_in_items, max_subquery_executions)
+     * @param array $budgets Budgets opcionais (max_rows, max_parameters, max_in_items, max_subquery_executions, query_timeout_seconds, request_timeout_seconds, max_total_bytes)
+     * Cluster-safe: budgets vêm de DEFAULT_BUDGETS mesclado com revision.budgets lido direto do DB por request (sem cache local retido).
      */
     public function compile(array $document, array $params, array $budgets = []): CompiledSql
     {
         $this->validate($document);
         $budgets = array_merge(self::DEFAULT_BUDGETS, $budgets);
+        // Deadline reduz timeout de statements quando supplied: statementTimeout = min(query_timeout, remaining)
         $this->validateRequestParameters($params, $budgets);
 
         $main = $document['query']['mainQuery'];

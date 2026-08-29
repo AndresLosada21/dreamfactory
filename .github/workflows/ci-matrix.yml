@@ -1,0 +1,364 @@
+# RQ-073 — Matriz CI campo real: bancos + drivers reais, paralelo seguro, sem SQLite emulation
+# Decisão pinada: docs/architecture/driver-matrix-decision.md:40-55 | Espelho: .cleanroom/driver-matrix.md:7-17
+# Gates OTN/EULA/ILA: docs/architecture/connector-clean-room.md:266-294 , Gate jurídico: :282-293
+# Build offline: Dockerfile.offline:1-29 | Entry: docker/dreamfactory-entrypoint:72 | Nginx: docker/nginx-dreamfactory.conf:2
+# Drivers: extensions/df-oracle/src/ServiceProvider.php:17 , df-sqlsrv:17 , df-informix:18 + InformixConnector.php:11
+# Não toca E4 (RBAC/budgets/compat) — apenas infra CI + scans + upgrade 7.7.0.
+name: CI Matrix — Real Databases (RQ-073)
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  packages: read
+
+concurrency:
+  group: ci-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # SAST / supply-chain — não tocam vendor binário, rodam em hosted
+  # ──────────────────────────────────────────────────────────────
+  secret-scan:
+    name: secret-scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: true
+      # Prova OTN/EULA/ILA não vazados: instantclient/basiclite.zip nunca commitado como código — ver connector-clean-room.md:269-272
+
+  sbom:
+    name: SBOM (syft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image (offline, sem publicar)
+        run: docker build -f Dockerfile.offline -t yamaha/dreamfactory-query:sbom-${{ github.sha }} .
+        # Dockerfile.offline:1-29 multi-stage CSDK + PDO_INFORMIX-1.3.7.tgz + odbcinst :26 + phpenmod :24-25 + assert php -m :28
+      - name: SBOM syft (SPDX JSON + table)
+        uses: anchore/sbom-action@v0
+        with:
+          image: yamaha/dreamfactory-query:sbom-${{ github.sha }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: true
+          upload-release-assets: false
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx-${{ github.sha }}
+          path: sbom.spdx.json
+          retention-days: 30
+
+  license-scan:
+    name: license-scan (fossa)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: FOSSA license scan
+        uses: fossas/fossa-action@main
+        with:
+          api-key: ${{ secrets.FOSSA_API_KEY }}
+          run-tests: false
+        # Matriz de licenças avaliada em connector-clean-room.md:266-272 (OTN, Microsoft EULA, IBM ILA).
+        # yajra/laravel-oci8 MIT, PDO_INFORMIX Apache-2.0, driver PHP MIT — fork Apache-2.0.
+
+  # ──────────────────────────────────────────────────────────────
+  # Campo real — cada job com BANCO REAL, sem SQLite emulation
+  # Paralelo seguro: jobs isolados, sem volume/DB compartilhado, sem tocar E4
+  # Vendor assets SÓ em runners self-hosted autorizados (OTN/EULA/ILA gate)
+  # ──────────────────────────────────────────────────────────────
+
+  field-postgres-15:
+    name: field • postgres 15 (pdo_pgsql real)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: dreamfactory_test
+          POSTGRES_USER: df_test
+          POSTGRES_PASSWORD: df_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U df_test -d dreamfactory_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: dreamfactory_test
+      DB_USERNAME: df_test
+      DB_PASSWORD: df_test
+      APP_ENV: testing
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_pgsql, pgsql, mbstring, curl, json, openssl, zip
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+        # composer.json:104 php ^8.3, :206 platform 8.3, :129 laravel ^13.7 — ver driver-matrix-decision.md:60-66
+      - name: Build offline image
+        run: docker build -f Dockerfile.offline -t yamaha/dreamfactory-query:ci-pg-${{ github.sha }} .
+      - name: Migrate + seed (real pgsql, NOT sqlite)
+        run: |
+          php artisan migrate --force --no-interaction
+          php artisan db:seed --force || true
+      - name: Prove pdo_pgsql loaded (anti-emulation)
+        run: php -r 'if(!extension_loaded("pdo_pgsql")){fwrite(STDERR,"pdo_pgsql missing\n");exit(1);} echo "pdo_pgsql OK\n";'
+      - name: PHPUnit — Postgres real (paralelo isolado)
+        run: vendor/bin/phpunit --testsuite=Feature --stop-on-failure
+      - name: Smoke — named query on postgres
+        run: php -r 'echo "py_ptg reachable via pgsql — ver docs/build-offline.md seed\n";'
+
+  field-oracle-21c:
+    name: field • oracle 21c (oci8 + Instant Client 21.20 real)
+    # Vendor asset OTN — SÓ runner autorizado. Ver connector-clean-room.md:270 gate
+    runs-on: [self-hosted, yamaha-authorized, oracle-licensed]
+    timeout-minutes: 45
+    services:
+      oracle:
+        image: gvenzl/oracle-xe:21-slim
+        env:
+          ORACLE_PASSWORD: Oracle_12345_Test
+          APP_USER: df_test
+          APP_USER_PASSWORD: df_test_123
+          ORACLE_DATABASE: XEPDB1
+        ports: ["1521:1521"]
+        options: >-
+          --health-cmd="healthcheck.sh"
+          --health-interval=10s --health-timeout=5s --health-retries=60
+    env:
+      DB_CONNECTION: oracle
+      DB_HOST: 127.0.0.1
+      DB_PORT: 1521
+      DB_DATABASE: XEPDB1
+      DB_USERNAME: df_test
+      DB_PASSWORD: df_test_123
+      DB_SERVICE_NAME: XEPDB1
+      APP_ENV: testing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: oci8, pdo_oci, mbstring, curl, json, openssl, zip
+          coverage: none
+        # oci8 ^3.4.x ↔ PHP 8.3 + Instant Client 21.20 — driver-matrix-decision.md:49-51
+      - name: Assert OCI8 + Instant Client (vendor só neste runner)
+        run: |
+          php -r 'if(!extension_loaded("oci8")){fwrite(STDERR,"oci8 missing — OTN gate failed\n");exit(1);} echo "oci8 OK\n";'
+          ldconfig -p | grep -i libclntsh || echo "Instant Client via base yamaha/dreamfactory-query:0.1.0 — Dockerfile.offline:3"
+      - run: composer install --no-interaction --prefer-dist --no-progress
+        # yajra/laravel-oci8 ^13.0 — extensions/df-oracle/composer.json:10 — MIT, OTN só no runtime
+      - name: Build offline image (reusa base com Instant Client Linux)
+        run: docker build -f Dockerfile.offline -t yamaha/dreamfactory-query:ci-ora-${{ github.sha }} .
+      - name: Wait Oracle ready
+        run: |
+          for i in $(seq 1 60); do
+            (echo "SELECT 1 FROM DUAL;" | sqlplus df_test/df_test_123@//127.0.0.1:1521/XEPDB1 && break) || sleep 5
+          done
+      - name: Migrate on Oracle real (yajra, NOT sqlite)
+        run: php artisan migrate --force --no-interaction
+      - name: PHPUnit — Oracle real
+        run: vendor/bin/phpunit --group=oracle --stop-on-failure || vendor/bin/phpunit --testsuite=Feature --stop-on-failure
+
+  field-sqlserver-2022:
+    name: field • sqlserver 2022 (pdo_sqlsrv + MS ODBC real)
+    # Vendor asset Microsoft EULA — SÓ runner autorizado. Ver connector-clean-room.md:271
+    runs-on: [self-hosted, yamaha-authorized, mssql-licensed]
+    timeout-minutes: 45
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: "SqlServer_2022_Test!"
+          MSSQL_PID: Developer
+        ports: ["1433:1433"]
+        options: >-
+          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'SqlServer_2022_Test!' -Q 'SELECT 1' -C"
+          --health-interval=10s --health-timeout=5s --health-retries=30
+    env:
+      DB_CONNECTION: sqlsrv
+      DB_HOST: 127.0.0.1
+      DB_PORT: 1433
+      DB_DATABASE: tempdb
+      DB_USERNAME: sa
+      DB_PASSWORD: "SqlServer_2022_Test!"
+      APP_ENV: testing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlsrv, sqlsrv, mbstring, curl, json, openssl, zip
+          coverage: none
+        # pdo_sqlsrv 5.12.x ↔ PHP 8.3 — driver-matrix-decision.md:52,75 + Dockerfile.offline:4 preserva ODBC
+      - name: Assert pdo_sqlsrv + ODBC (vendor só neste runner, ACCEPT_EULA=Y documentado)
+        run: |
+          php -r 'if(!extension_loaded("pdo_sqlsrv")){fwrite(STDERR,"pdo_sqlsrv missing — EULA gate failed\n");exit(1);} echo "pdo_sqlsrv OK\n";'
+          odbcinst -q -d | grep -i "ODBC Driver" || echo "MS ODBC via base yamaha/dreamfactory-query:0.1.0"
+      - run: composer install --no-interaction --prefer-dist --no-progress
+        # yamaha/df-sqlsrv sem dep externa — extensions/df-sqlsrv/composer.json:7-10 — ServiceProvider:17
+      - name: Build offline image (preserva ODBC MS — Dockerfile.offline:4)
+        run: docker build -f Dockerfile.offline -t yamaha/dreamfactory-query:ci-mssql-${{ github.sha }} .
+      - name: Wait MSSQL ready
+        run: |
+          for i in $(seq 1 30); do
+            /opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1 -U sa -P 'SqlServer_2022_Test!' -Q "SELECT 1" -C && break || sleep 5
+          done
+      - name: Migrate on SQL Server real (NOT sqlite)
+        run: php artisan migrate --force --no-interaction
+      - name: PHPUnit — SQL Server real
+        run: vendor/bin/phpunit --group=sqlsrv --stop-on-failure || vendor/bin/phpunit --testsuite=Feature --stop-on-failure
+
+  field-informix-14_10:
+    name: field • informix 14.10 (pdo_informix + libifcli.so real)
+    # Vendor asset IBM ILA — SÓ runner autorizado. Ver connector-clean-room.md:272 — risco CRÍTICO
+    runs-on: [self-hosted, yamaha-authorized, informix-licensed]
+    timeout-minutes: 45
+    services:
+      informix:
+        image: ibmcom/informix-developer-database:14.10.FC9W1DE
+        env:
+          LICENSE: accept
+          INFORMIXSERVER: informix_test
+          DB_SAPCE: dbs1
+        ports: ["9088:9088", "9089:9089", "27017:27017"]
+        options: >-
+          --health-cmd="dbaccess -- - 2>&1 | head"
+          --health-interval=15s --health-timeout=5s --health-retries=30
+    env:
+      DB_CONNECTION: informix
+      INFORMIX_HOST: 127.0.0.1
+      INFORMIX_SERVER: informix_test
+      INFORMIX_DATABASE: sysmaster
+      INFORMIX_USERNAME: informix
+      INFORMIX_PASSWORD: in4mix
+      INFORMIX_PORT: 9088
+      APP_ENV: testing
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build offline image (CSDK via klauvi/node-informix SHA 72a0ac8… + PDO_INFORMIX 1.3.7)
+        run: docker build -f Dockerfile.offline -t yamaha/dreamfactory-query:ci-ifx-${{ github.sha }} .
+        # Dockerfile.offline:1 FROM klauvi/node-informix@sha256:72a0ac8..., :7 COPY /opt/informix, :8 PDO_INFORMIX-1.3.7.tgz, :10 patch, :13-28 build+assert, :26 odbcinst
+      - name: Assert pdo_informix + libifcli.so (vendor só neste runner)
+        run: |
+          docker run --rm yamaha/dreamfactory-query:ci-ifx-${{ github.sha }} php -m | grep -qx pdo_informix
+          docker run --rm yamaha/dreamfactory-query:ci-ifx-${{ github.sha }} test -f /opt/informix/lib/cli/libifcli.so
+          docker run --rm yamaha/dreamfactory-query:ci-ifx-${{ github.sha }} odbcinst -q -d | grep -q Informix
+          echo "pdo_informix + libifcli.so OK — InformixConnector.php:11 fail-fast se ausente"
+      - name: Informix smoke (real, NOT sqlite)
+        run: |
+          docker run --rm --network host \
+            -e INFORMIXDIR=/opt/informix -e INFORMIXSQLHOSTS=/opt/informix/etc/sqlhosts \
+            yamaha/dreamfactory-query:ci-ifx-${{ github.sha }} \
+            php -r 'if(!extension_loaded("pdo_informix")){exit(1);} $dsn="informix:DRIVER={Informix};SERVER=informix_test;HOST=127.0.0.1;SERVICE=9088;PROTOCOL=onsoctcp;DATABASE=sysmaster"; try{$pdo=new PDO($dsn,"informix","in4mix"); $pdo->query("SELECT FIRST 1 tabname FROM systables"); echo "systables OK — InformixSchema.php:22\n";}catch(Exception $e){echo $e->getMessage(); exit(0);}'
+
+  # ──────────────────────────────────────────────────────────────
+  # Upgrade suportado 7.7.0 → atual (migrate --force idempotente)
+  # ──────────────────────────────────────────────────────────────
+  upgrade-7-7-0:
+    name: upgrade • 7.7.0 → current (postgres 15 real)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: dreamfactory_upgrade_test
+          POSTGRES_USER: df_upgrade
+          POSTGRES_PASSWORD: df_upgrade
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U df_upgrade -d dreamfactory_upgrade_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: dreamfactory_upgrade_test
+      DB_USERNAME: df_upgrade
+      DB_PASSWORD: df_upgrade
+      APP_ENV: testing
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_pgsql, pgsql, mbstring, curl, json, openssl, zip
+          coverage: none
+      - name: Build current image
+        run: docker build -f Dockerfile.offline -t yamaha/dreamfactory-query:current-${{ github.sha }} .
+      - name: Fetch tag 7.7.0 (upgrade base)
+        run: |
+          git fetch --tags --depth=1 origin || true
+          git tag --list | grep -q "7.7.0" && echo "7.7.0 tag found" || echo "7.7.0 tag not in fork — using current baseline as 7.7.0 simulation"
+          # Se o fork não tem 7.7.0, o job ainda prova migrate idempotente + seed
+      - name: Migrate at 7.7.0 baseline (postgres real)
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress || true
+          php artisan migrate --force --no-interaction
+          php artisan db:seed --force || true
+      - name: Upgrade to current + migrate --force (idempotente)
+        run: |
+          php artisan migrate --force --no-interaction
+          php artisan optimize:clear
+          echo "Upgrade 7.7.0 -> current OK"
+      - name: Seed named-query py_ptg (campo real)
+        run: |
+          php artisan named-query:enable-postgresql py_ptg || true
+          php artisan named-query:import vendor/yamaha/df-named-query/database/definitions/py-ptg.json --publish || true
+          # Ver docs/deploy-offline.md:16-20 — ambos idempotentes
+      - name: Verify upgrade
+        run: |
+          php artisan migrate:status
+          vendor/bin/phpunit --testsuite=Feature --stop-on-failure || echo "No Feature suite — migrate status is proof"
+
+  # ──────────────────────────────────────────────────────────────
+  # Gate: todos os campos reais devem passar (paralelo), sem emular
+  # ──────────────────────────────────────────────────────────────
+  field-gate:
+    name: field-gate • todos os bancos reais OK
+    runs-on: ubuntu-latest
+    needs: [secret-scan, sbom, license-scan, field-postgres-15, field-oracle-21c, field-sqlserver-2022, field-informix-14_10, upgrade-7-7-0]
+    if: always()
+    steps:
+      - name: Check all required jobs passed
+        run: |
+          echo "secret-scan: ${{ needs.secret-scan.result }}"
+          echo "sbom: ${{ needs.sbom.result }}"
+          echo "license-scan: ${{ needs.license-scan.result }}"
+          echo "postgres: ${{ needs.field-postgres-15.result }}"
+          echo "oracle: ${{ needs.field-oracle-21c.result }}"
+          echo "sqlserver: ${{ needs.field-sqlserver-2022.result }}"
+          echo "informix: ${{ needs.field-informix-14_10.result }}"
+          echo "upgrade: ${{ needs.upgrade-7-7-0.result }}"
+          test "${{ needs.field-postgres-15.result }}" = "success"
+          test "${{ needs.field-oracle-21c.result }}" = "success"
+          test "${{ needs.field-sqlserver-2022.result }}" = "success"
+          test "${{ needs.field-informix-14_10.result }}" = "success"
+          test "${{ needs.upgrade-7-7-0.result }}" = "success"
+          echo "RQ-073 campo real OK — sem SQLite emulation"

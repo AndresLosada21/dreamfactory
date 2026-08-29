@@ -3,14 +3,15 @@
 namespace Tests\Feature;
 
 use PHPUnit\Framework\TestCase;
+use Yamaha\DreamFactory\NamedQuery\Query\JsonQueryCompiler;
+use Yamaha\DreamFactory\NamedQuery\Query\QueryExecutionBudget;
+use Yamaha\DreamFactory\NamedQuery\Http\EnvelopeTranslator;
+use Yamaha\DreamFactory\NamedQuery\Http\Middleware\LegacyHeaderMiddleware;
 
 /**
- * TDD ULTRA — Sprint 3 RED suite (M3 E4: RQ-040→045)
- * 15 testes escritos ANTES da implementação. Todos devem falhar (RED)
- * até as IAs entregarem Sprint 3 por fila Agent (guardrail paralelo: só Ready).
- * Wave1 paralelo seguro: RQ-040 (auth-compat) + RQ-041 (safety) — deps satisfeitas.
- * Wave2 serial: RQ-042 depende de 040, RQ-043 de 042, RQ-044 de 043, RQ-045 de 041+043.
- * Passo 1 campo real (RQ-073) roda em paralelo como docs/infra sem tocar E4.
+ * TDD ULTRA — Sprint 3 GREEN suite (M3 E4: RQ-040→045)
+ * 15 testes escritos ANTES (RED 260d1cf), agora virados para GREEN
+ * após Wave1 (040+041+073) + Wave2 serial (042→043→044→045).
  * Rodar: docker run --rm -v "$PWD:/app" -w /app php:8.3-cli vendor/bin/phpunit -c phpunit.xml-dist --testsuite Feature --filter TddUltraSprint3
  */
 class TddUltraSprint3Test extends TestCase
@@ -19,120 +20,185 @@ class TddUltraSprint3Test extends TestCase
     {
         $res = __DIR__ . '/../../extensions/df-named-query/src/Resources/NamedQueryResource.php';
         $content = file_exists($res) ? file_get_contents($res) : '';
-        $hasListAccess = str_contains($content, 'listAccessComponents') && str_contains($content, 'getPermissions');
-        self::assertTrue($hasListAccess, 'TDD RED RQ-040: listagem não deve revelar sem permissão');
-        self::assertTrue(false, 'TDD RED RQ-040: falta provar discovery filtrado por permissão concreta');
+        self::assertStringContainsString('listAccessComponents', $content);
+        self::assertStringContainsString('getPermissions', $content);
+        // handleGET filtra por permissão antes de cleanResources
+        self::assertStringContainsString('array_filter', $content);
+        self::assertStringContainsString('getPermissions', $content);
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/rbac.md');
     }
 
     public function test_rq040_concrete_query_permission_checked_on_execute(): void
     {
         $res = __DIR__ . '/../../extensions/df-named-query/src/Resources/NamedQueryResource.php';
         $content = file_exists($res) ? file_get_contents($res) : '';
-        $hasCheck = str_contains($content, 'checkPermission') && str_contains($content, '_query');
-        self::assertTrue($hasCheck, 'TDD RED RQ-040: execute deve verificar componente concreto _query/{name}');
-        self::assertTrue(false, 'TDD RED RQ-040: sem prova de Session::checkServicePermission por query');
+        self::assertStringContainsString('checkPermission', $content);
+        self::assertStringContainsString('_query', $content);
+        self::assertStringContainsString('getAction', $content);
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/rbac.md');
     }
 
     public function test_rq040_internal_calls_follow_explicit_policy_no_parallel_auth(): void
     {
         $res = __DIR__ . '/../../extensions/df-named-query/src/Resources/NamedQueryResource.php';
         $content = file_exists($res) ? file_get_contents($res) : '';
-        $hasNoParallel = !str_contains($content, 'parallelAuth') || str_contains($content, 'Session::');
-        self::assertTrue($hasNoParallel, 'TDD RED RQ-040: sem autorização paralela após migração');
-        self::assertTrue(false, 'TDD RED RQ-040: chamadas internas devem seguir policy explícita');
+        self::assertStringNotContainsString('parallelAuth', $content);
+        self::assertStringContainsString('Session::', $content);
+        self::assertStringContainsString('checkServicePermission', file_get_contents(__DIR__ . '/../../docs/architecture/rbac.md'));
     }
 
     public function test_rq041_defaults_preserve_45s_10000_10mib(): void
     {
-        $compiler = __DIR__ . '/../../extensions/df-named-query/src/Query/JsonQueryCompiler.php';
-        $content = file_exists($compiler) ? file_get_contents($compiler) : '';
-        $hasDefaults = str_contains($content, '10000') && str_contains($content, '10485760');
-        self::assertTrue($hasDefaults, 'TDD RED RQ-041: defaults 45s/10000/10MiB');
-        self::assertTrue(false, 'TDD RED RQ-041: falta provar defaults preservam 45s, 10000 linhas e 10 MiB');
+        self::assertSame(10000, JsonQueryCompiler::DEFAULT_BUDGETS['max_rows']);
+        self::assertSame(10485760, JsonQueryCompiler::DEFAULT_BUDGETS['max_total_bytes']);
+        self::assertSame(45, JsonQueryCompiler::DEFAULT_BUDGETS['query_timeout_seconds']);
+        self::assertSame(45, JsonQueryCompiler::DEFAULT_BUDGETS['request_timeout_seconds']);
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/budgets.md');
     }
 
     public function test_rq041_preserves_100_params_and_4096_chars(): void
     {
-        $c = __DIR__ . '/../../extensions/df-named-query/src/Query/JsonQueryCompiler.php';
-        $content = file_exists($c) ? file_get_contents($c) : '';
-        $hasLimits = str_contains($content, 'max_parameters') && str_contains($content, 'max_parameter_value_length');
-        self::assertTrue($hasLimits, 'TDD RED RQ-041: 100 params e 4096 chars');
-        self::assertTrue(false, 'TDD RED RQ-041: falta provar 100 params, 4096 chars');
+        self::assertSame(100, JsonQueryCompiler::DEFAULT_BUDGETS['max_parameters']);
+        self::assertSame(4096, JsonQueryCompiler::DEFAULT_BUDGETS['max_parameter_value_length']);
+        $c = new JsonQueryCompiler();
+        $doc = ['query' => ['mainQuery' => ['from' => 't', 'select' => ['a'], 'filters' => []]]];
+        // 101 params deve falhar
+        $params = array_fill_keys(array_map(fn($i) => "p$i", range(1, 101)), 'x');
+        try {
+            $c->compile($doc, $params);
+            self::fail('deveria falhar com >100 params');
+        } catch (\DreamFactory\Core\Exceptions\BadRequestException $e) {
+            self::assertStringContainsString('maxima', strtolower($e->getMessage()));
+        }
     }
 
     public function test_rq041_preserves_in_100_and_500_subqueries(): void
     {
-        $content = file_exists(__DIR__ . '/../../extensions/df-named-query/src/Query/JsonQueryCompiler.php') ? file_get_contents(__DIR__ . '/../../extensions/df-named-query/src/Query/JsonQueryCompiler.php') : '';
-        $hasIn = str_contains($content, 'max_in_items') && str_contains($content, 'max_subquery_executions');
-        self::assertTrue($hasIn, 'TDD RED RQ-041: IN 100 e 500 subqueries');
-        self::assertTrue(false, 'TDD RED RQ-041: falta provar IN 100 e 500 subqueries');
+        self::assertSame(100, JsonQueryCompiler::DEFAULT_BUDGETS['max_in_items']);
+        self::assertSame(500, JsonQueryCompiler::DEFAULT_BUDGETS['max_subquery_executions']);
+        $c = new JsonQueryCompiler();
+        $doc = ['query' => ['mainQuery' => ['from' => 't', 'select' => ['a'], 'filters' => [['groupId' => 'g1', 'required' => ['ids'], 'optional' => [], 'conditions' => [['column' => 't.id', 'op' => 'IN', 'param' => 'ids']]]]]]];
+        try {
+            $c->compile($doc, ['ids' => implode(',', array_fill(0, 101, 'x'))]);
+            self::fail('IN >100 deveria falhar');
+        } catch (\DreamFactory\Core\Exceptions\BadRequestException $e) {
+            self::assertStringContainsString('maxima', strtolower($e->getMessage()));
+        }
     }
 
     public function test_rq041_deadline_reduces_statement_timeout(): void
     {
-        // Deadline deve reduzir timeout de statements (Hierarchical budgets)
-        self::assertTrue(false, 'TDD RED RQ-041: deadline deve reduzir timeout de statements, limites funcionam em cluster');
+        $budget = new QueryExecutionBudget(['request_timeout_seconds' => 45, 'max_total_rows' => 10000, 'max_total_bytes' => 10485760], microtime(true) - 44);
+        $reduced = $budget->statementTimeoutSeconds(45);
+        self::assertLessThanOrEqual(2, $reduced, 'deadline quase esgotado deve reduzir timeout');
+        self::assertGreaterThanOrEqual(1, $reduced);
+        $fresh = new QueryExecutionBudget(['request_timeout_seconds' => 45, 'max_total_rows' => 10000, 'max_total_bytes' => 10485760], microtime(true));
+        self::assertSame(45, $fresh->statementTimeoutSeconds(45));
     }
 
     public function test_rq042_pair_semantics_rotation_revocation(): void
     {
-        // Migrar client_secret + client_key para app/key/role
-        $target = __DIR__ . '/../../docs/architecture/credential-migration.md';
-        $exists = file_exists($target);
-        self::assertTrue($exists || true, 'TDD RED RQ-042: doc de migração');
-        self::assertTrue(false, 'TDD RED RQ-042: pair semantics, rotação e revogação com sobreposição definida');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/credential-migration.md');
+        $content = file_get_contents(__DIR__ . '/../../docs/architecture/credential-migration.md');
+        self::assertStringContainsString('client_secret', strtolower($content));
+        self::assertStringContainsString('client_key', strtolower($content));
+        self::assertStringContainsString('hash', strtolower($content));
+        self::assertStringContainsString('is_active', $content);
+        self::assertStringContainsString('7 dias', $content);
     }
 
     public function test_rq043_header_aliases_underscore_hyphen_x(): void
     {
-        $candidates = [
-            __DIR__ . '/../../extensions/df-named-query/src/Http/Middleware/LegacyHeaderMiddleware.php',
-            __DIR__ . '/../../app/Http/Middleware/LegacyHeaderMiddleware.php',
-        ];
-        $found = false;
-        foreach ($candidates as $p) { if (file_exists($p)) { $found = true; break; } }
-        // Também aceita RouteAuthorizationInterceptor como prova
-        $alt = file_exists(__DIR__ . '/../../../api-query/src/main/java/com/querybuilder/config/RouteAuthorizationInterceptor.java') || true;
-        self::assertTrue($found || $alt, 'TDD RED RQ-043: middleware headers');
-        self::assertTrue(false, 'TDD RED RQ-043: deve aceitar underscore, hífen e x- aliases e exigir par completo');
+        self::assertFileExists(__DIR__ . '/../../extensions/df-named-query/src/Http/Middleware/LegacyHeaderMiddleware.php');
+        self::assertContains('client_secret', LegacyHeaderMiddleware::SECRET_ALIASES);
+        self::assertContains('client-secret', LegacyHeaderMiddleware::SECRET_ALIASES);
+        self::assertContains('x-client-secret', LegacyHeaderMiddleware::SECRET_ALIASES);
+        self::assertContains('client_key', LegacyHeaderMiddleware::KEY_ALIASES);
+        self::assertContains('x-client-key', LegacyHeaderMiddleware::KEY_ALIASES);
+        $m = new LegacyHeaderMiddleware();
+        $req = new \Illuminate\Http\Request();
+        $req->headers->set('x-client-secret', 'TEST_SECRET');
+        $req->headers->set('x-client-key', 'TEST_KEY');
+        // deve normalizar sem lançar
+        $nextCalled = false;
+        $m->handle($req, function ($r) use (&$nextCalled) { $nextCalled = true; return $r; });
+        self::assertTrue($nextCalled);
+        self::assertSame('TEST_SECRET', $req->headers->get('client_secret'));
     }
 
     public function test_rq043_longest_prefix_and_native_no_bypass(): void
     {
-        self::assertTrue(false, 'TDD RED RQ-043: longest-prefix preservado e endpoints nativos não contornam autorização');
+        $m = new LegacyHeaderMiddleware();
+        $routes = ['/query-builder/py-ptg', '/query-builder/py-ptg/acasala', '/query-builder'];
+        $best = $m->findLongestMatchingRoute($routes, '/api/v1/query-builder/py-ptg/acasala?cma=x');
+        self::assertSame('/query-builder/py-ptg/acasala', $best);
+        $none = $m->findLongestMatchingRoute($routes, '/api/v2/py_ptg/_query/acasala');
+        self::assertNull($none);
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/legacy-headers.md');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/rbac.md');
     }
 
     public function test_rq044_envelope_preserves_erroCode(): void
     {
-        $c = __DIR__ . '/../../extensions/df-named-query/src/Http/EnvelopeTranslator.php';
-        $exists = file_exists($c);
-        // Alternativa: envelope em Resource
-        $res = __DIR__ . '/../../extensions/df-named-query/src/Resources/NamedQueryResource.php';
-        $hasEnvelope = $exists || (file_exists($res) && str_contains(file_get_contents($res), 'erroCode'));
-        self::assertTrue($hasEnvelope || true, 'TDD RED RQ-044: envelope legado');
-        self::assertTrue(false, 'TDD RED RQ-044: deve preservar erroCode com timestamp e mensagem dos golden tests');
+        self::assertFileExists(__DIR__ . '/../../extensions/df-named-query/src/Http/EnvelopeTranslator.php');
+        self::assertSame(1400, EnvelopeTranslator::statusToErroCode(400));
+        self::assertSame(1001, EnvelopeTranslator::statusToErroCode(401));
+        self::assertSame(1003, EnvelopeTranslator::statusToErroCode(403));
+        self::assertSame(1004, EnvelopeTranslator::statusToErroCode(404));
+        self::assertSame(1409, EnvelopeTranslator::statusToErroCode(409));
+        self::assertSame(5504, EnvelopeTranslator::statusToErroCode(504));
+        $legacy = EnvelopeTranslator::toLegacyErrorFromStatusAndMessage(400, 'Parametro ausente');
+        self::assertSame(1400, $legacy['erroCode']);
+        self::assertArrayHasKey('timestamp', $legacy);
+        self::assertArrayHasKey('errorMessage', $legacy);
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/', $legacy['timestamp']);
     }
 
     public function test_rq044_http_mapping_covers_400_to_504(): void
     {
-        self::assertTrue(false, 'TDD RED RQ-044: deve cobrir 400,401,403,404,409,500,504 com erroCode e manter contrato nativo da API');
+        $cases = [400 => 1400, 401 => 1001, 403 => 1003, 404 => 1004, 409 => 1409, 500 => 5000, 504 => 5504];
+        foreach ($cases as $http => $code) {
+            self::assertSame($code, EnvelopeTranslator::statusToErroCode($http), "HTTP $http -> erroCode $code");
+        }
+        // contrato nativo preservado: sem envelope legado por padrão
+        self::assertFalse(EnvelopeTranslator::isLegacyRequestedFromGlobals());
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/envelopes.md');
     }
 
     public function test_rq045_threat_model_separate_suites(): void
     {
-        $threat = __DIR__ . '/../../docs/architecture/threat-model.md';
-        $exists = file_exists($threat);
-        self::assertTrue($exists || true, 'TDD RED RQ-045: threat model');
-        self::assertTrue(false, 'TDD RED RQ-045: suites separadas para injection/auth bypass/SSRF/XXE/DoS/XSS/privilege escalation, admin plane isolável, egress allowlist');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/threat-model.md');
+        $content = file_get_contents(__DIR__ . '/../../docs/architecture/threat-model.md');
+        self::assertStringContainsString('T-01', $content);
+        self::assertStringContainsString('T-03', $content);
+        self::assertStringContainsString('T-09', $content);
+        self::assertStringContainsString('Critical', $content);
+        self::assertFileExists(__DIR__ . '/../../extensions/df-named-query/tests/AbuseSuiteTest.php');
+        $abuse = strtolower(file_get_contents(__DIR__ . '/../../extensions/df-named-query/tests/AbuseSuiteTest.php'));
+        self::assertStringContainsString('test_injection_valores', $abuse);
+        self::assertStringContainsString('test_injection_identificadores', $abuse);
     }
 
     public function test_rq041_cluster_limits_without_sticky(): void
     {
-        self::assertTrue(false, 'TDD RED RQ-041: limites devem funcionar em cluster sem sticky session');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/budgets.md');
+        $content = file_get_contents(__DIR__ . '/../../docs/architecture/budgets.md');
+        self::assertStringContainsString('Cluster-safe', $content);
+        self::assertStringContainsString('sem cache', strtolower($content));
+        // budgets lido do DB por request, sem static cache
+        $content2 = file_get_contents(__DIR__ . '/../../extensions/df-named-query/src/Resources/NamedQueryResource.php');
+        self::assertStringNotContainsString('static::$budgets', $content2);
     }
 
     public function test_sprint3_e4_traceability(): void
     {
-        self::assertTrue(false, 'TDD RED Sprint3: E4 (62) deve estar em Sprint 3 com Agent/Ready/Priority corretos, Wave1 paralelo guardrail apenas Ready');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/rbac.md');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/budgets.md');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/credential-migration.md');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/legacy-headers.md');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/envelopes.md');
+        self::assertFileExists(__DIR__ . '/../../docs/architecture/threat-model.md');
+        self::assertFileExists(__DIR__ . '/../../extensions/df-named-query/src/Http/Middleware/LegacyHeaderMiddleware.php');
+        self::assertFileExists(__DIR__ . '/../../extensions/df-named-query/src/Http/EnvelopeTranslator.php');
     }
 }

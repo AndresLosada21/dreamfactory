@@ -22,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            // RQ-043 — LegacyHeaderMiddleware normaliza aliases client_secret/client_key (underscore/hífen/x-) antes de NamedQueryResource/ApiDocs.
+            // Exige par completo (present+present & não-curto-circuito) → 401 se incompleto; preserva longest-prefix via matchesRoute logic; delega para RBAC nativo sem bypass.
+            // Ver docs/architecture/legacy-headers.md:§4-§6, rbac.md, inventory-api-query-contract.md:§8
+            'legacy.headers' => \Yamaha\DreamFactory\NamedQuery\Http\Middleware\LegacyHeaderMiddleware::class,
         ]);
 
         $middleware->priority([
