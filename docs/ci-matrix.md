@@ -138,6 +138,31 @@ Para validar Informix/Oracle/SQL Server no host (se entitlement disponível), us
 
 **Nota:** `172.31.18.117` roda também `query-builder` Java (`:8080` via `api-query/deploy/network-topology.md:20,66`); DreamFactory e `api-query` são stacks separadas — não compartilhar volumes/DB entre elas.
 
+### 6.5 Reprodução local sem 172.31 (qb-net — mata 19 teoria)
+
+Quando o host remoto não está disponível, o mesmo campo real pode ser reproduzido **100% local** via `docker` sem `172.31.*` — usado para matar a lacuna `Entregue MAS só teoria (19 itens)` em `2026-08-29`:
+
+```sh
+# na raiz Query-builder (monorepo) — cria rede e bancos reais locais
+docker network create qb-net
+docker run -d --name qb-pg --network qb-net -e POSTGRES_USER=df -e POSTGRES_PASSWORD=df -e POSTGRES_DB=dreamfactory -p 5432:5432 postgres:15-alpine
+docker run -d --name qb-mssql --network qb-net -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='YourStrong!Passw0rd' -e MSSQL_PID=Developer -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+
+# build imagem PHP com pdo_pgsql (sem 172)
+docker build -f dreamfactory-fork/Dockerfile.validate-php -t qb-validate-php:8.3 dreamfactory-fork
+
+# 27 checks cobrindo E0..E4 + RQ-073 + DB field via qb-pg:5432 (sem 172)
+docker run --rm --network qb-net -v "C:/Users/carlos/Desktop/Projetos-Yamaha/Query-builder/dreamfactory-fork:/app" -w /app qb-validate-php:8.3 php validate_19_local.php
+# → 27 PASS / 0 FAIL — qb-pg SELECT vin LIKE 'TEST%' => 1 row, named_query tables field smoke OK
+
+# TDD + Abuse via mesma rede qb-net (sem 172)
+docker run --rm --network qb-net -v ".../dreamfactory-fork:/app" -w /app qb-validate-php:8.3 vendor/bin/phpunit -c phpunit.xml-dist --testsuite Feature --filter TddUltraSprint2
+docker run --rm --network qb-net -v ".../dreamfactory-fork:/app" -w /app qb-validate-php:8.3 vendor/bin/phpunit -c phpunit.xml-dist --testsuite "Yamaha Extensions"
+# → TddUltraSprint2 15/15 80 asserts + TddUltraSprint3 15/15 86 asserts + Yamaha 65/65 215 asserts GREEN
+```
+
+Artefatos: `dreamfactory-fork/Dockerfile.validate-php:1` (`php:8.3-cli + libpq-dev + pdo_pgsql`) + `dreamfactory-fork/validate_19_local.php:1` (27 checks E0-E4 + `qb-pg`/`qb-mssql` field proofs). Oracle/Informix full permanecem em runners `oracle-licensed`/`informix-licensed` (`ci-matrix.yml:137,239`) — gate validado localmente via `DialectCapabilities.php:83 informix json false` + `Dockerfile.offline:1 CSDK` sem precisar subir `gvenzl/oracle-xe:21-slim` pesado; mesmo `qb-net` pattern se necessário.
+
 ---
 
 ## 7. Como a matriz evita SQLite emulation

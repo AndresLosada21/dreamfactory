@@ -1,0 +1,6 @@
+FROM php:8.3-cli
+RUN apt-get update -qq && apt-get install -y -qq libpq-dev gnupg2 curl apt-transport-https >/dev/null 2>&1 \
+ && docker-php-ext-install -j$(nproc) pdo_pgsql pdo >/dev/null 2>&1 \
+ && php -m | grep -q pdo_pgsql && echo "pdo_pgsql OK" \
+ && rm -rf /var/lib/apt/lists/*
+# mssql driver optional - keep PG as primary field proof
