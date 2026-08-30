@@ -1,6 +1,12 @@
 FROM php:8.3-cli
-RUN apt-get update -qq && apt-get install -y -qq libpq-dev gnupg2 curl apt-transport-https >/dev/null 2>&1 \
- && docker-php-ext-install -j$(nproc) pdo_pgsql pdo >/dev/null 2>&1 \
- && php -m | grep -q pdo_pgsql && echo "pdo_pgsql OK" \
+RUN apt-get update && apt-get install -y gnupg curl apt-transport-https unixodbc-dev libpq-dev \
+ && curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+ && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
+ && apt-get update \
+ && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
+ && pecl install sqlsrv pdo_sqlsrv \
+ && docker-php-ext-enable sqlsrv pdo_sqlsrv \
+ && docker-php-ext-install pdo_pgsql pdo \
+ && php -m | grep -E "pdo_pgsql|pdo_sqlsrv|sqlsrv" && echo "drivers OK" \
  && rm -rf /var/lib/apt/lists/*
-# mssql driver optional - keep PG as primary field proof
+# pdo_sqlsrv 5.12.x + msodbcsql18 field proof qb-mssql:1433 via qb-net
