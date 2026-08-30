@@ -5,6 +5,8 @@ namespace Yamaha\DreamFactory\NamedQuery\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use DreamFactory\Core\Exceptions\UnauthorizedException;
+use Illuminate\Support\Facades\Cache;
+use DreamFactory\Core\Events\ServiceModifiedEvent;
 
 /**
  * RQ-043 — Middleware de headers legados e rotas legadas
@@ -174,5 +176,15 @@ class LegacyHeaderMiddleware
         }
 
         return $best;
+    }
+
+    /**
+     * Invalidação via ServiceModifiedEvent + Cache::tags — RQ-054
+     * @see NamedQueryRepository.php Cache::tags
+     */
+    public function invalidateViaCacheTags(string $serviceId): void
+    {
+        Cache::tags(['service:' . $serviceId])->flush();
+        event(new ServiceModifiedEvent(['service_id' => $serviceId]));
     }
 }

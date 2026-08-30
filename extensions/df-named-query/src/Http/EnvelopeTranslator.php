@@ -50,6 +50,9 @@ use DreamFactory\Core\Utility\ServiceResponse;
 class EnvelopeTranslator
 {
     public const HEADER_LEGACY = 'X-Legacy-Envelope';
+    // preview dry-run via envelope legado — RQ-053: preview dry-run deve usar envelope de erro
+    public const PREVIEW_PARAM = 'preview';
+    public const DRY_RUN_PARAM = 'dry-run';
 
     /**
      * @var array<int,int> HTTP status -> erroCode legado
