@@ -15,7 +15,9 @@ use Yamaha\DreamFactory\NamedQuery\Query\NamedSqlCompiler;
 use Yamaha\DreamFactory\NamedQuery\Query\QueryExecutionBudget;
 use Yamaha\DreamFactory\NamedQuery\Services\ClusterInvalidationService;
 use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
+use Yamaha\DreamFactory\NamedQuery\Services\MetricsService;
 use Yamaha\DreamFactory\NamedQuery\Services\NamedQueryAudit;
+use Yamaha\DreamFactory\NamedQuery\Services\StructuredLogService;
 
 class NamedQueryResource extends BaseRestResource
 {
@@ -316,6 +318,8 @@ class NamedQueryResource extends BaseRestResource
         $this->checkPermission($this->getAction(), $this->resource);
         $start = microtime(true);
         $query = null;
+        $requestId = null;
+        try { $requestId = (new StructuredLogService())->requestId(); } catch (\Throwable $ignored) { $requestId = $_SERVER['HTTP_X_REQUEST_ID'] ?? null; }
 
         try {
             $query = NamedQuery::forService($this->getServiceId())
@@ -357,6 +361,30 @@ class NamedQueryResource extends BaseRestResource
                 'checksum' => (string) ($query->publishedRevision->checksum ?? ''),
                 'budgets' => $query->publishedRevision->budgets ?? null,
             ], $start, 'success');
+            // RQ-072 — métricas e logs estruturados (sem SQL/binds/secret)
+            try {
+                $durationMs = (int) ((microtime(true) - $start) * 1000);
+                $bytes = strlen(json_encode($resource, JSON_UNESCAPED_SLASHES));
+                app(MetricsService::class)->recordExecution([
+                    'service_id' => (int) $this->getServiceId(),
+                    'query_name' => (string) $query->name,
+                    'latencyMs' => $durationMs,
+                    'rows' => is_array($resource) ? count($resource) : 0,
+                    'bytes' => $bytes,
+                    'outcome' => 'success',
+                    'request_id' => $requestId,
+                ]);
+                app(StructuredLogService::class)->info('named_query.execution', [
+                    'service_id' => (int) $this->getServiceId(),
+                    'query_name' => (string) $query->name,
+                    'request_id' => $requestId,
+                    'duration_ms' => $durationMs,
+                    'rows' => is_array($resource) ? count($resource) : 0,
+                    'bytes' => $bytes,
+                    'outcome' => 'success',
+                ]);
+                app(MetricsService::class)->observePool('named_query', is_array($resource) ? count($resource) : 0);
+            } catch (\Throwable $ignored) {}
 
             return ['resource' => $resource];
         } catch (\Throwable $e) {
@@ -395,6 +423,30 @@ class NamedQueryResource extends BaseRestResource
                 'checksum' => $checksum,
                 'budgets' => $budgets,
             ], $start, 'failure', get_class($e));
+            // RQ-072 — métrica de reject/failure
+            try {
+                $durationMs = (int) ((microtime(true) - $start) * 1000);
+                $rejectReason = str_contains(get_class($e), 'BadRequest') ? 'budget_exceeded' : (str_contains(get_class($e), 'RestException') ? 'timeout' : 'error');
+                app(MetricsService::class)->recordExecution([
+                    'service_id' => (int) $this->getServiceId(),
+                    'query_name' => (string) $qname,
+                    'latencyMs' => $durationMs,
+                    'rows' => 0,
+                    'bytes' => 0,
+                    'outcome' => 'failure',
+                    'rejectReason' => $rejectReason,
+                    'request_id' => $requestId,
+                ]);
+                app(MetricsService::class)->incrementReject($rejectReason);
+                app(StructuredLogService::class)->info('named_query.execution_failure', [
+                    'service_id' => (int) $this->getServiceId(),
+                    'query_name' => (string) $qname,
+                    'request_id' => $requestId,
+                    'duration_ms' => $durationMs,
+                    'outcome' => 'failure',
+                    'error_code' => get_class($e),
+                ]);
+            } catch (\Throwable $ignored) {}
 
             throw $e;
         }

@@ -4,6 +4,7 @@ namespace Yamaha\DreamFactory\NamedQuery\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Yamaha\DreamFactory\NamedQuery\Services\MetricsService;
 
 /**
  * RQ-070 — Cluster-safe invalidation de metadata e caches.
@@ -44,6 +45,7 @@ class ClusterInvalidationService
         $this->deleteByPrefix(self::PREFIX . "list:{$serviceId}");
         $this->bumpGeneration();
         Log::info('nq.cache.invalidate', ['scope' => 'queries', 'service_id' => $serviceId]);
+        try { if (function_exists('app') && app()->bound(MetricsService::class)) { app(MetricsService::class)->observePool('cache_invalidation', 1); } } catch (\Throwable $ignored) {}
     }
 
     public function invalidateRoles(): void

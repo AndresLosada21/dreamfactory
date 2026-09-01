@@ -55,6 +55,7 @@ class QueryExecutionBudget
     public function checkDeadline(): void
     {
         if ($this->remainingNanos() <= 0) {
+            try { if (function_exists('app') && app()->bound(\Yamaha\DreamFactory\NamedQuery\Services\MetricsService::class)) { app(\Yamaha\DreamFactory\NamedQuery\Services\MetricsService::class)->incrementReject('timeout'); } } catch (\Throwable $ignored) {}
             throw new \DreamFactory\Core\Exceptions\RestException(504, 'Tempo limite total da consulta excedido', 504);
         }
     }
@@ -81,10 +82,12 @@ class QueryExecutionBudget
         $this->checkDeadline();
         $this->totalRows++;
         if ($this->totalRows > $this->maxTotalRows) {
+            try { if (function_exists('app') && app()->bound(\Yamaha\DreamFactory\NamedQuery\Services\MetricsService::class)) { app(\Yamaha\DreamFactory\NamedQuery\Services\MetricsService::class)->incrementReject('budget_exceeded'); } } catch (\Throwable $ignored) {}
             throw new BadRequestException('A consulta excedeu o limite agregado de ' . $this->maxTotalRows . ' linhas');
         }
         $this->totalBytes += $this->estimateJsonBytes($row);
         if ($this->totalBytes > $this->maxTotalBytes) {
+            try { if (function_exists('app') && app()->bound(\Yamaha\DreamFactory\NamedQuery\Services\MetricsService::class)) { app(\Yamaha\DreamFactory\NamedQuery\Services\MetricsService::class)->incrementReject('budget_exceeded'); } } catch (\Throwable $ignored) {}
             throw new BadRequestException('A consulta excedeu o limite agregado de ' . $this->maxTotalBytes . ' bytes');
         }
     }

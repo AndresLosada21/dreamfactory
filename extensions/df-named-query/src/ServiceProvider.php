@@ -13,7 +13,10 @@ use Yamaha\DreamFactory\NamedQuery\Console\ImportNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Console\EnablePostgreSqlNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Services\ClusterInvalidationService;
 use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
+use Yamaha\DreamFactory\NamedQuery\Services\MetricsService;
 use Yamaha\DreamFactory\NamedQuery\Services\QueryPostgreSql;
+use Yamaha\DreamFactory\NamedQuery\Services\StructuredLogService;
+use Yamaha\DreamFactory\NamedQuery\Http\Middleware\RequestTracingMiddleware;
 
 class ServiceProvider extends \Illuminate\Support\ServiceProvider
 {
@@ -26,6 +29,14 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
             $this->app->make(ClusterInvalidationService::class)->ensureClusterSafe();
         } catch (\Throwable $ignored) {}
 
+        // RQ-072 — tracing middleware (propaga X-Request-ID)
+        try {
+            $router = $this->app['router'] ?? null;
+            if ($router && method_exists($router, 'pushMiddlewareToGroup')) {
+                $router->pushMiddlewareToGroup('api', RequestTracingMiddleware::class);
+            }
+        } catch (\Throwable $ignored) {}
+
         if ($this->app->runningInConsole()) {
             $this->commands([EnablePostgreSqlNamedQueries::class, ImportNamedQueries::class]);
         }
@@ -33,6 +44,12 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
 
     public function register()
     {
+        // RQ-072 — metrics e structured log singletons
+        $this->app->singleton(MetricsService::class, fn () => new MetricsService());
+        $this->app->alias(MetricsService::class, 'df.named-query.metrics');
+        $this->app->singleton(StructuredLogService::class, fn () => new StructuredLogService());
+        $this->app->alias(StructuredLogService::class, 'df.named-query.structured-log');
+
         // RQ-070 — cluster-safe invalidation singleton
         $this->app->singleton(ClusterInvalidationService::class, fn () => new ClusterInvalidationService());
         $this->app->alias(ClusterInvalidationService::class, 'df.named-query.invalidation');
