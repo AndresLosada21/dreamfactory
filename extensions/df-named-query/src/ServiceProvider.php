@@ -9,6 +9,7 @@ use DreamFactory\Core\System\Components\SystemResourceManager;
 use DreamFactory\Core\System\Components\SystemResourceType;
 use DreamFactory\Core\SqlDb\Models\PgSqlDbConfig;
 use Yamaha\DreamFactory\NamedQuery\Resources\NamedQueryAdminResource;
+use Yamaha\DreamFactory\NamedQuery\Resources\HealthResource;
 use Yamaha\DreamFactory\NamedQuery\Console\ImportNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Console\EnablePostgreSqlNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Services\ClusterInvalidationService;
@@ -17,6 +18,7 @@ use Yamaha\DreamFactory\NamedQuery\Services\MetricsService;
 use Yamaha\DreamFactory\NamedQuery\Services\QueryPostgreSql;
 use Yamaha\DreamFactory\NamedQuery\Services\StructuredLogService;
 use Yamaha\DreamFactory\NamedQuery\Http\Middleware\RequestTracingMiddleware;
+use Yamaha\DreamFactory\NamedQuery\Http\HealthCheckService;
 
 class ServiceProvider extends \Illuminate\Support\ServiceProvider
 {
@@ -37,6 +39,11 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
             }
         } catch (\Throwable $ignored) {}
 
+        // RQ-071 — health liveness não depende dos bancos
+        try {
+            $this->app->make(HealthCheckService::class);
+        } catch (\Throwable $ignored) {}
+
         if ($this->app->runningInConsole()) {
             $this->commands([EnablePostgreSqlNamedQueries::class, ImportNamedQueries::class]);
         }
@@ -44,6 +51,10 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
 
     public function register()
     {
+        // RQ-071 — health check service (liveness sem DB)
+        $this->app->singleton(HealthCheckService::class, fn () => new HealthCheckService());
+        $this->app->alias(HealthCheckService::class, 'df.named-query.health');
+
         // RQ-072 — metrics e structured log singletons
         $this->app->singleton(MetricsService::class, fn () => new MetricsService());
         $this->app->alias(MetricsService::class, 'df.named-query.metrics');
@@ -68,15 +79,24 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                         "Remove the incompatible package or rename the conflicting type."
                     );
                 }
-
-                return;
+            } else {
+                $resources->addType(new SystemResourceType([
+                    'name' => 'named_query',
+                    'label' => 'Named Queries',
+                    'description' => 'Administrates versioned Named Query definitions.',
+                    'class_name' => NamedQueryAdminResource::class,
+                ]));
             }
-            $resources->addType(new SystemResourceType([
-                'name' => 'named_query',
-                'label' => 'Named Queries',
-                'description' => 'Administrates versioned Named Query definitions.',
-                'class_name' => NamedQueryAdminResource::class,
-            ]));
+            // RQ-071 — health resource (liveness/readiness) — system-level, sem auth para liveness/ready, admin para detailed
+            $healthExisting = $resources->getResourceType('health');
+            if ($healthExisting === null) {
+                $resources->addType(new SystemResourceType([
+                    'name' => 'health',
+                    'label' => 'Health Checks',
+                    'description' => 'Liveness, readiness and detailed health (RQ-071).',
+                    'class_name' => HealthResource::class,
+                ]));
+            }
         });
 
         $this->app->resolving('df.service', function (ServiceManager $services) {
