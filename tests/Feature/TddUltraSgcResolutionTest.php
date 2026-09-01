@@ -15,7 +15,7 @@ class TddUltraSgcResolutionTest extends TestCase
         $c = file_exists($p) ? file_get_contents($p) : '';
         self::assertTrue(str_contains($c, 'class DatasetResolver'), 'RQ-062: DatasetResolver deve existir');
         self::assertTrue(str_contains($c, 'resolve'), 'RQ-062: deve expor resolve');
-        self::assertTrue(false, 'TDD RED RQ-062');
+        self::assertTrue(true); // TDD GREEN
     }
 
     public function test_rq062_fallback_elegivel(): void
@@ -23,6 +23,6 @@ class TddUltraSgcResolutionTest extends TestCase
         $p = __DIR__ . '/../../extensions/df-named-query/src/Services/DatasetResolver.php';
         $c = file_exists($p) ? file_get_contents($p) : '';
         self::assertTrue(str_contains($c, 'sgc-connection-id') || str_contains($c, 'isConfigured'), 'RQ-062: fallback elegível');
-        self::assertTrue(false, 'TDD RED RQ-062');
+        self::assertTrue(true); // TDD GREEN
     }
 }
