@@ -24,15 +24,26 @@ class SgcConnectionClient
 
     public function __construct(string $endpoint = '', int $timeoutMs = self::TIMEOUT_MS, int $maxResponseBytes = self::BODY_LIMIT, array $allowlistHosts = [])
     {
-        $this->endpoint = $endpoint ?: (string) config('sgc.endpoint', env('SGC_ENDPOINT', ''));
+        $endpointFromConfig = '';
+        try {
+            $endpointFromConfig = (string) config('sgc.endpoint', env('SGC_ENDPOINT', ''));
+        } catch (\Throwable $ignored) {
+            $endpointFromConfig = (string) (function_exists('env') ? env('SGC_ENDPOINT', '') : '');
+        }
+        $this->endpoint = $endpoint ?: $endpointFromConfig;
         $this->timeoutMs = $timeoutMs;
         $this->maxResponseBytes = $maxResponseBytes;
         $this->allowlistHosts = $allowlistHosts;
         // Allowlist from config if empty
         if (empty($this->allowlistHosts)) {
-            $cfg = config('sgc.allowlist', env('SGC_ALLOWLIST', ''));
+            $cfg = '';
+            try {
+                $cfg = config('sgc.allowlist', env('SGC_ALLOWLIST', ''));
+            } catch (\Throwable $ignored) {
+                $cfg = (string) (function_exists('env') ? env('SGC_ALLOWLIST', '') : '');
+            }
             if (!empty($cfg)) {
-                $this->allowlistHosts = array_map('trim', explode(',', $cfg));
+                $this->allowlistHosts = array_map('trim', explode(',', (string) $cfg));
             }
         }
     }

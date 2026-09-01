@@ -20,6 +20,10 @@ use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
 use Yamaha\DreamFactory\NamedQuery\Services\MetricsService;
 use Yamaha\DreamFactory\NamedQuery\Services\QueryPostgreSql;
 use Yamaha\DreamFactory\NamedQuery\Services\StructuredLogService;
+use Yamaha\DreamFactory\NamedQuery\Services\SgcConnectionClient;
+use Yamaha\DreamFactory\NamedQuery\Services\SgaClient;
+use Yamaha\DreamFactory\NamedQuery\Services\SgaSgcOrchestrator;
+use Yamaha\DreamFactory\NamedQuery\Services\SgcCircuitBreaker;
 use Yamaha\DreamFactory\NamedQuery\Http\Middleware\RequestTracingMiddleware;
 use Yamaha\DreamFactory\NamedQuery\Http\HealthCheckService;
 
@@ -77,6 +81,22 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
         // RQ-021 — contrato de capacidades independente do driver, consultável pela UI/engine.
         $this->app->singleton(DialectCapabilities::class, fn () => new DialectCapabilities());
         $this->app->alias(DialectCapabilities::class, 'df.named-query.capabilities');
+
+        // RQ-061 + RQ-086 + RQ-087 — SGA+SGC nativo v2 (substitui api-query) — singletons df.sga/df.sgc/df.sga-sgc-orchestrator
+        $this->app->singleton(SgcConnectionClient::class, fn () => new SgcConnectionClient());
+        $this->app->alias(SgcConnectionClient::class, 'df.sgc');
+        $this->app->singleton(SgaClient::class, fn () => new SgaClient());
+        $this->app->alias(SgaClient::class, 'df.sga');
+        $this->app->singleton(SgcCircuitBreaker::class, fn () => new SgcCircuitBreaker());
+        $this->app->alias(SgcCircuitBreaker::class, 'df.sgc.circuit-breaker');
+        $this->app->singleton(SgaSgcOrchestrator::class, fn () => new SgaSgcOrchestrator(
+            $this->app->make(SgaClient::class),
+            $this->app->make(SgcConnectionClient::class),
+            $this->app->make(SgcCircuitBreaker::class),
+            $this->app->make(ClusterInvalidationService::class),
+            $this->app->make(SecretRotationService::class)
+        ));
+        $this->app->alias(SgaSgcOrchestrator::class, 'df.sga-sgc-orchestrator');
 
         $this->app->resolving('df.system.resource', function (SystemResourceManager $resources) {
             $existing = $resources->getResourceType('named_query');
