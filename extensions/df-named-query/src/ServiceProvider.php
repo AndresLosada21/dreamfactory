@@ -11,6 +11,7 @@ use DreamFactory\Core\SqlDb\Models\PgSqlDbConfig;
 use Yamaha\DreamFactory\NamedQuery\Resources\NamedQueryAdminResource;
 use Yamaha\DreamFactory\NamedQuery\Console\ImportNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Console\EnablePostgreSqlNamedQueries;
+use Yamaha\DreamFactory\NamedQuery\Services\ClusterInvalidationService;
 use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
 use Yamaha\DreamFactory\NamedQuery\Services\QueryPostgreSql;
 
@@ -20,6 +21,11 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
 
+        // RQ-070 — enforcement de driver cluster-safe em boot (warn se array/file em prod)
+        try {
+            $this->app->make(ClusterInvalidationService::class)->ensureClusterSafe();
+        } catch (\Throwable $ignored) {}
+
         if ($this->app->runningInConsole()) {
             $this->commands([EnablePostgreSqlNamedQueries::class, ImportNamedQueries::class]);
         }
@@ -27,6 +33,10 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
 
     public function register()
     {
+        // RQ-070 — cluster-safe invalidation singleton
+        $this->app->singleton(ClusterInvalidationService::class, fn () => new ClusterInvalidationService());
+        $this->app->alias(ClusterInvalidationService::class, 'df.named-query.invalidation');
+
         // RQ-021 — contrato de capacidades independente do driver, consultável pela UI/engine.
         $this->app->singleton(DialectCapabilities::class, fn () => new DialectCapabilities());
         $this->app->alias(DialectCapabilities::class, 'df.named-query.capabilities');

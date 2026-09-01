@@ -6,6 +6,7 @@ use Yamaha\DreamFactory\NamedQuery\Resources\NamedQueryResource;
 
 trait HasNamedQueryResource
 {
+    // RQ-070 cluster-safe: sem sticky session — cache distribuído via config/cache.php database/redis, invalidação via Cache::tags + ServiceModifiedEvent (ShouldDispatchAfterCommit)
     // service_id FK — dataset resolves via service_id without duplicating URL (RQ-062)
     public function getResourceHandlers()
     {

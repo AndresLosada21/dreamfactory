@@ -10,6 +10,7 @@ use DreamFactory\Core\Utility\ResourcesWrapper;
 use DreamFactory\Core\Utility\Session;
 use Yamaha\DreamFactory\NamedQuery\Models\NamedQuery;
 use Yamaha\DreamFactory\NamedQuery\Repositories\NamedQueryRepository;
+use Yamaha\DreamFactory\NamedQuery\Services\ClusterInvalidationService;
 
 class NamedQueryAdminResource extends BaseSystemResource
 {
@@ -17,6 +18,8 @@ class NamedQueryAdminResource extends BaseSystemResource
 
     protected function handleGET()
     {
+        // RQ-070 — stateless check
+        try { (new ClusterInvalidationService())->getGeneration(); } catch (\Throwable $ignored) {}
         if (!empty($this->resource)) {
             $query = NamedQuery::with('revisions')->find($this->resource);
             if (!$query) {

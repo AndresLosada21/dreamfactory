@@ -5,6 +5,7 @@ namespace Yamaha\DreamFactory\NamedQuery\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use DreamFactory\Core\Events\ServiceModifiedEvent;
 use DreamFactory\Core\Utility\Session;
 
 /**
@@ -146,6 +147,14 @@ class NamedQueryAudit
                 }
             }
         } catch (\Throwable $e) {
+        }
+
+        // RQ-070 cluster-safe: event bus garante convergência em todos os nós sem sticky, SLA <5s via ShouldDispatchAfterCommit + Cache::tags flush
+        if ($serviceId !== null) {
+            try {
+                event(new ServiceModifiedEvent(['service_id' => $serviceId]));
+            } catch (\Throwable $e) {
+            }
         }
 
         // Fallback: forget chaves prefixadas conhecidas

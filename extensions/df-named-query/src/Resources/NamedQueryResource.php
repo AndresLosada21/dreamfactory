@@ -13,6 +13,7 @@ use Yamaha\DreamFactory\NamedQuery\Models\NamedQuery;
 use Yamaha\DreamFactory\NamedQuery\Query\JsonQueryCompiler;
 use Yamaha\DreamFactory\NamedQuery\Query\NamedSqlCompiler;
 use Yamaha\DreamFactory\NamedQuery\Query\QueryExecutionBudget;
+use Yamaha\DreamFactory\NamedQuery\Services\ClusterInvalidationService;
 use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
 use Yamaha\DreamFactory\NamedQuery\Services\NamedQueryAudit;
 
@@ -27,6 +28,8 @@ class NamedQueryResource extends BaseRestResource
 
     protected function handleGET()
     {
+        // RQ-070 — stateless read: verifica generation para detectar stale cache (sem reter estado local)
+        try { (new ClusterInvalidationService())->getGeneration(); } catch (\Throwable $ignored) {}
         // RQ-021 — capacidades consultáveis pela UI/engine.
         // GET /api/v2/{service}/_query/capabilities  e  GET /api/v2/{service}/_query?capabilities=true
         $query = $this->request->getParameters();
@@ -305,6 +308,8 @@ class NamedQueryResource extends BaseRestResource
 
     private function execute(array $values): array
     {
+        // RQ-070 — stateless: sem cache local retido; verifica generation antes de servir
+        try { (new ClusterInvalidationService())->getGeneration(); } catch (\Throwable $ignored) {}
         // RQ-040 — execução exige permissão no componente concreto _query/{name}
         // via RBAC nativo Session::checkServicePermission (sem autorização paralela).
         // Chamadas internas (Repository/Audit) seguem policy explícita do request; não criam bypass.

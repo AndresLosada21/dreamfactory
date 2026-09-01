@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Yamaha\DreamFactory\NamedQuery\Models\NamedQuery;
 use Yamaha\DreamFactory\NamedQuery\Models\NamedQueryRevision;
 use Yamaha\DreamFactory\NamedQuery\Query\NamedSqlCompiler;
+use Yamaha\DreamFactory\NamedQuery\Services\ClusterInvalidationService;
 use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
 use Yamaha\DreamFactory\NamedQuery\Services\NamedQueryAudit;
 
@@ -54,6 +55,8 @@ class NamedQueryRepository
             });
 
             $rev = $result->revisions->last() ?? $result->revisions->first();
+            // RQ-070 — cluster-safe invalidation após create (draft não é publicado, mas invalida lista)
+            try { (new ClusterInvalidationService())->invalidateQueries((int) $definition['service_id']); } catch (\Throwable $ignored) {}
             NamedQueryAudit::recordWithDuration('create', [
                 'actor_id' => $actorId,
                 'service_id' => (int) $definition['service_id'],
@@ -115,6 +118,7 @@ class NamedQueryRepository
             });
             $queryName = (string) ($result->name ?? '');
             $serviceId = (int) ($result->service_id ?? 0);
+            try { (new ClusterInvalidationService())->invalidateQueries($serviceId); } catch (\Throwable $ignored) {}
             NamedQueryAudit::recordWithDuration($action, [
                 'actor_id' => $actorId,
                 'service_id' => $serviceId,
@@ -167,6 +171,7 @@ class NamedQueryRepository
                 $query->save();
                 $query->delete();
             });
+            try { if ($serviceId !== null) (new ClusterInvalidationService())->invalidateQueries($serviceId); } catch (\Throwable $ignored) {}
             NamedQueryAudit::recordWithDuration('delete', [
                 'service_id' => $serviceId,
                 'query_id' => $queryId,
@@ -230,6 +235,7 @@ class NamedQueryRepository
 
                 return $rev;
             });
+            try { (new ClusterInvalidationService())->invalidateQueries((int) $definition['service_id']); } catch (\Throwable $ignored) {}
             NamedQueryAudit::recordWithDuration('revise', [
                 'actor_id' => $actorId,
                 'service_id' => (int) $definition['service_id'],
@@ -308,6 +314,7 @@ class NamedQueryRepository
                 return $query->fresh('publishedRevision');
             });
             $rev = $result->publishedRevision;
+            try { (new ClusterInvalidationService())->invalidateAll((int) $result->service_id); } catch (\Throwable $ignored) {}
             NamedQueryAudit::recordWithDuration('publish', [
                 'actor_id' => $actorId,
                 'service_id' => (int) $result->service_id,
