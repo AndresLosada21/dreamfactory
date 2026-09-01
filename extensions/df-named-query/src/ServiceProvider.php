@@ -12,6 +12,9 @@ use Yamaha\DreamFactory\NamedQuery\Resources\NamedQueryAdminResource;
 use Yamaha\DreamFactory\NamedQuery\Resources\HealthResource;
 use Yamaha\DreamFactory\NamedQuery\Console\ImportNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Console\EnablePostgreSqlNamedQueries;
+use Yamaha\DreamFactory\NamedQuery\Console\ReconcileConfig;
+use Yamaha\DreamFactory\NamedQuery\Services\ConfigReconciliationService;
+use Yamaha\DreamFactory\NamedQuery\Services\SecretRotationService;
 use Yamaha\DreamFactory\NamedQuery\Services\ClusterInvalidationService;
 use Yamaha\DreamFactory\NamedQuery\Services\DialectCapabilities;
 use Yamaha\DreamFactory\NamedQuery\Services\MetricsService;
@@ -45,12 +48,18 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
         } catch (\Throwable $ignored) {}
 
         if ($this->app->runningInConsole()) {
-            $this->commands([EnablePostgreSqlNamedQueries::class, ImportNamedQueries::class]);
+            $this->commands([EnablePostgreSqlNamedQueries::class, ImportNamedQueries::class, ReconcileConfig::class]);
         }
     }
 
     public function register()
     {
+        // RQ-081 — reconciliation e secret rotation
+        $this->app->singleton(ConfigReconciliationService::class, fn () => new ConfigReconciliationService());
+        $this->app->alias(ConfigReconciliationService::class, 'df.named-query.reconciliation');
+        $this->app->singleton(SecretRotationService::class, fn () => new SecretRotationService());
+        $this->app->alias(SecretRotationService::class, 'df.named-query.secret-rotation');
+
         // RQ-071 — health check service (liveness sem DB)
         $this->app->singleton(HealthCheckService::class, fn () => new HealthCheckService());
         $this->app->alias(HealthCheckService::class, 'df.named-query.health');
