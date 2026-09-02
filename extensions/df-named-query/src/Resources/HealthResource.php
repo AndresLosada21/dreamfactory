@@ -7,8 +7,9 @@ use DreamFactory\Core\Utility\Session;
 use Yamaha\DreamFactory\NamedQuery\Http\HealthCheckService;
 
 /**
- * RQ-071 — Health resource for liveness, readiness and detailed checks
- * Routes: /health (legacy = liveness), /health/ready, /health/detailed
+ * RQ-071 - Health resource for liveness, readiness and detailed checks
+ * Routes: /health (legacy = liveness sem DB), /health/ready (readiness com DB + SGA 172.31.16.89/SGA + SGC 172.31.16.89/SGC), /health/detailed (admin)
+ * Liveness nao toca DB/SGA/SGC; readiness verifica DB/cache/system_store + SGA + SGC + nq:cache_generation via ClusterInvalidationService + secret_store via SecretRotationService; detailed herda e exige admin
  */
 class HealthResource extends BaseRestResource
 {
@@ -23,7 +24,7 @@ class HealthResource extends BaseRestResource
     {
         $service = new HealthCheckService();
 
-        // resource empty => /health legacy => liveness
+        // resource empty => /health legacy => liveness sem DB (nao verifica DB/SGA/SGC)
         if (empty($this->resource) || $this->resource === 'health') {
             $payload = $service->liveness();
             $this->setNoCacheHeaders();
@@ -37,14 +38,14 @@ class HealthResource extends BaseRestResource
             // DreamFactory will map return array to 200; we set status via header hint
             // For real 503, throw RestException or set response code via ServiceResponse
             if ($status === 503) {
-                // Use RestException to get 503, but include payload
+                // Use RestException to get 503, but include payload (checks incluem DB + SGA 172.31.16.89/SGA + SGC 172.31.16.89/SGC)
                 throw new \DreamFactory\Core\Exceptions\RestException(503, json_encode($payload), 503);
             }
             return $payload;
         }
 
         if ($this->resource === 'detailed') {
-            // Detailed requires admin
+            // Detailed requires admin - usa ClusterInvalidationService nq:cache_generation e SecretRotationService
             $this->checkAdmin();
             $payload = $service->detailed();
             $this->setNoCacheHeaders();
@@ -60,7 +61,7 @@ class HealthResource extends BaseRestResource
 
     private function checkAdmin(): void
     {
-        // Require admin role — via Session::checkServicePermission or getCurrentUserId + isAdmin
+        // Require admin role - via Session::checkServicePermission or getCurrentUserId + isAdmin
         try {
             $userId = Session::getCurrentUserId();
             if (empty($userId)) {
@@ -96,19 +97,19 @@ class HealthResource extends BaseRestResource
         return [
             '/' . static::RESOURCE_NAME => [
                 'get' => [
-                    'summary' => 'Liveness probe (legacy /health)',
+                    'summary' => 'Liveness probe (legacy /health) sem DB',
                     'responses' => ['200' => ['description' => 'ok']],
                 ],
             ],
             '/' . static::RESOURCE_NAME . '/ready' => [
                 'get' => [
-                    'summary' => 'Readiness probe',
+                    'summary' => 'Readiness probe com DB + SGA 172.31.16.89/SGA + SGC 172.31.16.89/SGC + cache_generation',
                     'responses' => ['200' => ['description' => 'ok'], '503' => ['description' => 'degraded']],
                 ],
             ],
             '/' . static::RESOURCE_NAME . '/detailed' => [
                 'get' => [
-                    'summary' => 'Detailed health (admin only)',
+                    'summary' => 'Detailed health (admin only) com ClusterInvalidationService nq:cache_generation e SecretRotationService',
                     'responses' => ['200' => ['description' => 'ok'], '403' => ['description' => 'forbidden'], '503' => ['description' => 'degraded']],
                 ],
             ],

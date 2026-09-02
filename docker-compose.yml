@@ -1,0 +1,62 @@
+services:
+  dreamfactory:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dreamfactory
+    ports:
+      - "${DREAMFACTORY_PORT:-18082}:80"
+    environment:
+      - CACHE_STORE=file
+      - CACHE_DRIVER=file
+      - SESSION_DRIVER=file
+      - APP_ENV=${APP_ENV:-local}
+      - APP_DEBUG=${APP_DEBUG:-true}
+      - DB_CONNECTION=${DB_CONNECTION:-sqlite}
+      - DF_CACHE_TTL=18000
+      - MCP_INTERNAL_BASE_URL=http://127.0.0.1
+      - DF_JWT_TTL=43200
+      - MCP_STATELESS=true
+      - MCP_REQUEST_TIMEOUT_MS=180000
+    volumes:
+      - dreamfactory-storage:/opt/dreamfactory/storage
+    networks:
+      - qb-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/api/v2 || curl -fsS http://localhost/ | head -n 1 | grep -q DreamFactory || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # Opcional: frontend Angular em watch mode (mesmo do hot)
+  # Uso: docker compose --profile tools up -d
+  frontend-watch:
+    image: node:20
+    container_name: dreamfactory-frontend
+    working_dir: /workspace
+    volumes:
+      - ./dreamfabric-admin:/workspace
+      - /workspace/node_modules
+      - ./docker/frontend-proxy.hot.json:/workspace/frontend-proxy.hot.json:ro
+    command: sh -c "if [ ! -f node_modules/.bin/ng ]; then npm ci --ignore-scripts --no-audit --no-fund; fi; npx ng serve --host 0.0.0.0 --poll=1000 --proxy-config /workspace/frontend-proxy.hot.json"
+    ports:
+      - "4200:4200"
+    environment:
+      - HUSKY=0
+      - NODE_OPTIONS=--max-old-space-size=4096
+    profiles:
+      - tools
+    depends_on:
+      - dreamfactory
+
+networks:
+  qb-net:
+    driver: bridge
+    # reutiliza a rede do compose raiz se existir, senão cria
+    name: query-builder_qb-net
+
+volumes:
+  dreamfactory-storage:
+    name: dreamfactory-storage

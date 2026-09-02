@@ -40,7 +40,7 @@ class HealthCheckTest extends TestCase
         foreach ($checks as $c) {
             self::assertArrayHasKey('status', $c);
             self::assertArrayHasKey('latencyMs', $c);
-            self::assertNotContains('password', json_encode($c), 'health não deve vazar segredos');
+            self::assertStringNotContainsString('password', json_encode($c), 'health não deve vazar segredos');
         }
     }
 
