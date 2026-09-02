@@ -87,16 +87,17 @@ class SgaSyncResource extends BaseRestResource
         $lastName = $parts && count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : $codUsuario;
 
         $user = User::where('username', $codUsuario)->orWhere('email', $email)->first();
-        if (!$user) {
+        $isNew = ($user === null);
+        if ($isNew) {
             $user = new User();
             $user->name = mb_substr($nomUsuario, 0, 255);
             $user->username = $codUsuario;
+            $user->email = $email;
         }
         $user->name = mb_substr($nomUsuario, 0, 255);
         $user->first_name = mb_substr($firstName, 0, 255);
         $user->last_name = mb_substr($lastName, 0, 255);
         $user->username = $codUsuario;
-        $user->email = $email;
         $user->password = Hash::make($dscSenha);
         unset($dscSenha);
         $user->is_active = 1;
@@ -107,7 +108,7 @@ class SgaSyncResource extends BaseRestResource
 
         return [
             'codUsuario' => $codUsuario,
-            'email' => $email,
+            'email' => $user->email,
             'nomSistema' => $nomSistema,
             'dfRole' => $dfRole,
             'is_sys_admin' => (bool) $user->is_sys_admin,
