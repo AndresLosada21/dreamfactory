@@ -92,14 +92,18 @@ class QbMigrationService
                 if (isset($def['sql']) && str_contains($def['sql'], 'QB_GQ_LOTE')) {
                     $def['sql'] = str_replace('LOTE', 'lote_id', $def['sql']);
                 }
-                foreach ($def['parameters'] ?? [] as &$param) {
-                    if (($param['name'] ?? '') === 'LOTE') {
-                        $param['name'] = 'lote_id';
+                if (isset($def['parameters']) && is_array($def['parameters'])) {
+                    foreach ($def['parameters'] as &$param) {
+                        if (($param['name'] ?? '') === 'LOTE') {
+                            $param['name'] = 'lote_id';
+                        }
                     }
+                    unset($param);
                 }
                 $def['_reconciled_gq_lote'] = true;
             }
         }
+        unset($def);
         return $definitions;
     }
 

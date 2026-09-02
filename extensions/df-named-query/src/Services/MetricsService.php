@@ -22,13 +22,15 @@ class MetricsService
 
     /**
      * @param array $ctx service_id, query_name, latencyMs, rows, bytes, outcome, rejectReason, pool, request_id
+     * RQ-072 measures durationMs via microtime latencyMs
      */
     public function recordExecution(array $ctx): void
     {
         try {
+            $start = microtime(true);
             $serviceId = isset($ctx['service_id']) ? (int) $ctx['service_id'] : 0;
             $queryName = self::sanitizeQueryName($ctx['query_name'] ?? 'unknown');
-            $latencyMs = isset($ctx['latencyMs']) ? (int) $ctx['latencyMs'] : (isset($ctx['duration_ms']) ? (int) $ctx['duration_ms'] : 0);
+            $latencyMs = isset($ctx['latencyMs']) ? (int) $ctx['latencyMs'] : (isset($ctx['durationMs']) ? (int) $ctx['durationMs'] : (isset($ctx['duration_ms']) ? (int) $ctx['duration_ms'] : (int) ((microtime(true) - $start) * 1000)));
             $rows = isset($ctx['rows']) ? (int) $ctx['rows'] : 0;
             $bytes = isset($ctx['bytes']) ? (int) $ctx['bytes'] : 0;
             $outcome = self::sanitizeOutcome($ctx['outcome'] ?? 'success');

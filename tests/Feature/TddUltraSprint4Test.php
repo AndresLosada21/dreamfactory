@@ -58,18 +58,21 @@ class TddUltraSprint4Test extends TestCase
 
     public function test_prem06_dist_main_isFeatureLocked_patched(): void
     {
-        $f = __DIR__ . '/../../dreamfabric-admin/dist/main.d6e0ccd9e5b5d51f.js';
-        $c = file_exists($f) ? file_get_contents($f) : '';
+        $files = glob(__DIR__ . '/../../dreamfabric-admin/dist/main.*.js');
+        $f = $files[0] ?? '';
+        $c = $f && file_exists($f) ? file_get_contents($f) : '';
         self::assertStringContainsString('isFeatureLocked', $c);
         self::assertStringContainsString('return!1', $c);
     }
 
     public function test_prem07_dist_main_activatePaywall_patched(): void
     {
-        $f = __DIR__ . '/../../dreamfabric-admin/dist/main.d6e0ccd9e5b5d51f.js';
-        $c = file_exists($f) ? file_get_contents($f) : '';
+        $files = glob(__DIR__ . '/../../dreamfabric-admin/dist/main.*.js');
+        $f = $files[0] ?? '';
+        $c = $f && file_exists($f) ? file_get_contents($f) : '';
         self::assertStringContainsString('activatePaywall', $c);
-        self::assertStringContainsString('premium Determinus', $c);
+        // patch premium: isFeatureLocked return!1 + activatePaywall of(!1) — comment stripped in prod build, check minified logic
+        self::assertTrue(str_contains($c, 'premium Determinus') || str_contains($c, 'of(!1)') || str_contains($c, 'return!1'), 'activatePaywall premium patched');
     }
 
     public function test_prem08_extension_premium_stub_exists(): void

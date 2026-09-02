@@ -37,13 +37,13 @@ class DatasetResolver
                 $config = $service->config ?? [];
                 if (!empty($config) || !empty($service->id)) {
                     // Source registra ID sem duplicar senha — retorna service_id apenas
-                    Log::info('dataset.resolve.local', ['dataset' => $datasetName, 'service_id' => $service->id]);
+                    try { Log::info('dataset.resolve.local', ['dataset' => $datasetName, 'service_id' => $service->id]); } catch (\Throwable $ignored) {}
                     return ['service_id' => $service->id, 'name' => $datasetName, 'via' => 'local'];
                 }
             }
         } catch (\Throwable $e) {
             // Falha elegível — tenta SGC fallback
-            Log::info('dataset.resolve.local_failed', ['dataset' => $datasetName, 'error' => $this->sanitize($e->getMessage())]);
+            try { Log::info('dataset.resolve.local_failed', ['dataset' => $datasetName, 'error' => $this->sanitize($e->getMessage())]); } catch (\Throwable $ignored) {}
         }
 
         // 2. Fallback SGC apenas se elegível
@@ -60,12 +60,12 @@ class DatasetResolver
                         $this->invalidation->invalidateSource($serviceId);
                     }
                 } catch (\Throwable $ignored) {}
-                Log::info('dataset.resolve.sgc', ['dataset' => $datasetName, 'sgc_connection_id' => (int) $sgcId]);
+                try { Log::info('dataset.resolve.sgc', ['dataset' => $datasetName, 'sgc_connection_id' => (int) $sgcId]); } catch (\Throwable $ignored) {}
                 return ['service_id' => $conn['codConexao'] ?? (int) $sgcId, 'sgc_connection_id' => (int) $sgcId, 'via' => 'sgc', 'connection' => $conn];
             } catch (\Throwable $e) {
                 // Falha dupla — preserva causa sanitizada
                 $cause = $this->sanitize($e->getMessage());
-                Log::info('dataset.resolve.sgc_failed', ['dataset' => $datasetName, 'sgc_connection_id' => (int) $sgcId, 'error' => $cause]);
+                try { Log::info('dataset.resolve.sgc_failed', ['dataset' => $datasetName, 'sgc_connection_id' => (int) $sgcId, 'error' => $cause]); } catch (\Throwable $ignored) {}
                 throw new \RuntimeException('Dataset resolution failed for ' . $datasetName . ': ' . $cause, 0, $e);
             }
         }
