@@ -7,7 +7,6 @@ use DreamFactory\Core\Exceptions\ForbiddenException;
 use DreamFactory\Core\Exceptions\UnauthorizedException;
 use DreamFactory\Core\Models\User;
 use DreamFactory\Core\Resources\BaseRestResource;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Yamaha\DreamFactory\NamedQuery\Services\SgaClient;
 use Yamaha\DreamFactory\NamedQuery\Services\SgaSgcOrchestrator;
@@ -98,7 +97,8 @@ class SgaSyncResource extends BaseRestResource
         $user->first_name = mb_substr($firstName, 0, 255);
         $user->last_name = mb_substr($lastName, 0, 255);
         $user->username = $codUsuario;
-        $user->password = Hash::make($dscSenha);
+        // O mutator do model já aplica Hash::make — passar a senha pura.
+        $user->password = $dscSenha;
         unset($dscSenha);
         $user->is_active = 1;
         $user->is_sys_admin = ($dfRole === 'admin') ? 1 : 0;
