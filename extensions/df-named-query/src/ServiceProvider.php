@@ -11,6 +11,7 @@ use DreamFactory\Core\System\Components\SystemResourceType;
 use DreamFactory\Core\SqlDb\Models\PgSqlDbConfig;
 use Yamaha\DreamFactory\NamedQuery\Resources\NamedQueryAdminResource;
 use Yamaha\DreamFactory\NamedQuery\Resources\HealthResource;
+use Yamaha\DreamFactory\NamedQuery\Resources\SgaSyncResource;
 use Yamaha\DreamFactory\NamedQuery\Console\ImportNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Console\EnablePostgreSqlNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Console\ReconcileConfig;
@@ -138,6 +139,15 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                 ]));
             }
             // RQ-071 — health resource (liveness/readiness) — system-level, sem auth para liveness/ready, admin para detailed
+            // E10 - SGA sync-login publico (valida no SGA, espelha conta/papel)
+            if ($resources->getResourceType('sga_sync') === null) {
+                $resources->addType(new SystemResourceType([
+                    'name' => 'sga_sync',
+                    'label' => 'SGA Sync Login',
+                    'description' => 'E10: valida credencial no SGA e espelha conta/papel no DF.',
+                    'class_name' => SgaSyncResource::class,
+                ]));
+            }
             $healthExisting = $resources->getResourceType('health');
             if ($healthExisting === null) {
                 $resources->addType(new SystemResourceType([
