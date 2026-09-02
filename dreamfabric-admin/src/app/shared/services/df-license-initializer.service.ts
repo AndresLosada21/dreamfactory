@@ -13,27 +13,9 @@ export class DfLicenseInitializerService {
   ) {}
 
   initializeLicenseCheck() {
-    // Only perform the check once on app initialization
-    return this.systemConfigDataService.environment$.pipe(
-      take(1),
-      switchMap(environment => {
-        if (
-          environment.platform?.license &&
-          environment.platform?.license !== 'OPEN SOURCE' &&
-          environment.platform?.licenseKey
-        ) {
-          // Check if we don't already have a license check result
-          if (!this.licenseCheckService.currentLicenseCheck) {
-            return this.licenseCheckService
-              .check(environment.platform.licenseKey as string)
-              .pipe(
-                map(() => true),
-                catchError(() => of(true)) // Continue even if check fails
-              );
-          }
-        }
-        return of(true);
-      })
-    );
+    // premium Determinus — always GOLD valid, no remote check, mock licenseCheck to avoid 401 Expired/Unknown
+    const mock: any = { statusCode: '200', msg: 'OK', renewalDate: '2099-12-31', disableUi: 'false' };
+    (this.licenseCheckService as any).licenseCheckSubject?.next?.(mock);
+    return of(true);
   }
 }

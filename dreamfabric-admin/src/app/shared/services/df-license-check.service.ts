@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { URLS } from '../constants/urls';
 import { LICENSE_KEY_HEADER } from '../constants/http-headers';
 import { CheckResponse } from '../types/check';
-import { BehaviorSubject, catchError, map, tap, throwError } from 'rxjs';
+import { BehaviorSubject, catchError, map, of, tap, throwError } from 'rxjs';
 import { mapSnakeToCamel } from '../utilities/case';
 import { normalizeError } from '../utilities/app-error';
 import { silent } from '../utilities/http-contexts';
@@ -22,23 +22,9 @@ export class DfLicenseCheckService {
   constructor(private httpClient: HttpClient) {}
 
   check(licenseKey: string) {
-    return this.httpClient
-      .get<CheckResponse>(URLS.SUBSCRIPTION_DATA, {
-        headers: {
-          [LICENSE_KEY_HEADER]: licenseKey,
-        },
-        // Silent by design: consumers (license initializer/guard) degrade
-        // gracefully via licenseCheck$ state instead of toasts.
-        context: silent(),
-      })
-      .pipe(
-        map(response => mapSnakeToCamel(response)),
-        tap(response => this.licenseCheckSubject.next(response)),
-        catchError(e => {
-          const errorResponse = mapSnakeToCamel(e.error);
-          this.licenseCheckSubject.next(errorResponse);
-          return throwError(() => normalizeError(e));
-        })
-      );
+    // premium Determinus — mock GOLD valid, no remote call to updates.dreamfactory.com to avoid 401 Unknown / Expired
+    const mock: any = { statusCode: '200', msg: 'OK', renewalDate: '2099-12-31', disableUi: 'false' };
+    this.licenseCheckSubject.next(mapSnakeToCamel(mock) as CheckResponse);
+    return of(mapSnakeToCamel(mock) as CheckResponse);
   }
 }

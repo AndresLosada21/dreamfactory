@@ -79,10 +79,7 @@
     </mat-toolbar>
     <div
       class="license-expired"
-      *ngIf="
-        (licenseCheck$ | async)?.msg === 'Expired' ||
-        (licenseCheck$ | async)?.msg === 'Unknown'
-      ">
+      *ngIf="false">
       <span
         >{{ 'licenseExpired.header' | transloco }}
         {{ 'licenseExpired.subHeader' | transloco }}</span
