@@ -167,10 +167,12 @@ class SgaSgcOrchestrator
         $map = [
             'administrador' => 'admin',
             'admin' => 'admin',
+            'df_admin' => 'admin',
             'gerente' => 'manager',
             'manager' => 'manager',
             'consulta' => 'viewer',
             'viewer' => 'viewer',
+            'df_read' => 'viewer',
             'operador' => 'operator',
             'operator' => 'operator',
             'usuario' => 'user',
