@@ -38,9 +38,10 @@ class SgaSyncResource extends BaseRestResource
         if (!is_array($data)) {
             $data = [];
         }
-        $codUsuario = trim((string) ($data['codUsuario'] ?? ''));
-        $dscSenha = (string) ($data['dscSenha'] ?? '');
-        $nomSistema = trim((string) ($data['nomSistema'] ?? 'DF')) ?: 'DF';
+        // A tela envia via interceptor que converte para snake_case.
+        $codUsuario = trim((string) ($data['codUsuario'] ?? $data['cod_usuario'] ?? ''));
+        $dscSenha = (string) ($data['dscSenha'] ?? $data['dsc_senha'] ?? '');
+        $nomSistema = trim((string) ($data['nomSistema'] ?? $data['nom_sistema'] ?? 'DF')) ?: 'DF';
 
         if ($codUsuario === '' || $dscSenha === '') {
             throw new BadRequestException('codUsuario and dscSenha are required.');
