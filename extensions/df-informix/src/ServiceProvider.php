@@ -3,6 +3,7 @@
 namespace Yamaha\DreamFactory\Informix;
 
 use DreamFactory\Core\Components\DbSchemaExtensions;
+use DreamFactory\Core\Enums\LicenseLevel;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
 use DreamFactory\Core\Services\ServiceManager;
 use DreamFactory\Core\Services\ServiceType;
@@ -34,6 +35,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                 'label' => 'Informix',
                 'description' => 'Independent Informix database service using PDO Informix. Requires pdo_informix and IBM Informix CSDK (external, not redistributed). Fails explicitly if extension is missing.',
                 'group' => ServiceTypeGroups::DATABASE,
+                'subscriptionRequired' => LicenseLevel::GOLD,
                 'config_handler' => InformixConfig::class,
                 'factory' => function (array $config) {
                     return new Informix($config);

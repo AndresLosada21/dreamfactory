@@ -48,6 +48,7 @@ RUN if [ -d /etc/nginx/sites-enabled ] && [ ! -e /etc/nginx/sites-enabled/dreamf
 COPY composer.json /opt/dreamfactory/composer.json
 COPY composer.lock /opt/dreamfactory/composer.lock
 # Scripts e extensões Yamaha
+COPY extensions /opt/dreamfactory/extensions
 COPY scripts/mcp-named-query-tools.php /opt/dreamfactory/scripts/mcp-named-query-tools.php
 # dreamfabric-admin/dist pode não existir na base; copia se existir
 COPY dreamfabric-admin/dist /opt/dreamfactory/public/dreamfactory/dist
@@ -65,6 +66,10 @@ RUN sed -i "s/min:16/min:8/g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/
     sed -i "s/min:16/min:8/g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Components/Registrar.php 2>/dev/null || true; \
     sed -i "s/at least 16 characters/at least 8 characters/g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Commands/Setup.php 2>/dev/null || true; \
     sed -i "s/strlen((string) \$password) < 16/strlen((string) \$password) < 8/" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Commands/Setup.php 2>/dev/null || true
+
+# Premium unlock Determinus — força GOLD (remove banner, libera event-scripts, rate-limiting, scheduler)
+RUN sed -i "s|return LicenseLevel::OPEN_SOURCE;|return LicenseLevel::GOLD; // premium Determinus|g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Utility/Environment.php 2>/dev/null || true; \
+    sed -i "s|this.showBanner = license === 'OPEN SOURCE' || isTrial;|this.showBanner = false; // premium Determinus|g" /opt/dreamfactory/public/dreamfactory/src/app/shared/components/df-engagement-banner/df-engagement-banner.component.ts 2>/dev/null || true
 
 RUN sed -i 's/\r$//' /usr/local/bin/dreamfactory-entrypoint /etc/nginx/sites-available/dreamfactory.conf 2>/dev/null || true; \
     chmod 755 /usr/local/bin/dreamfactory-entrypoint

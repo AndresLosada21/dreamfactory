@@ -16,7 +16,7 @@ class SgaClient
     public const BODY_LIMIT = 1048576;
     public const TIMEOUT_MS = 3000;
     public const NAMESPACE = 'http://WsAcesso.facade.sga.yamaha.com.br/';
-    public const WSDL_SGA = 'http://172.31.16.89/SGA/';
+    public const WSDL_SGA = 'http://172.31.16.89/SGA/WsAcesso?wsdl';
 
     private string $endpoint;
     private int $timeoutMs;

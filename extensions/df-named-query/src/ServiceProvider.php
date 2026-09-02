@@ -2,6 +2,7 @@
 
 namespace Yamaha\DreamFactory\NamedQuery;
 
+use DreamFactory\Core\Enums\LicenseLevel;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
 use DreamFactory\Core\Services\ServiceManager;
 use DreamFactory\Core\Services\ServiceType;
@@ -25,6 +26,7 @@ use Yamaha\DreamFactory\NamedQuery\Services\SgaClient;
 use Yamaha\DreamFactory\NamedQuery\Services\SgaSgcOrchestrator;
 use Yamaha\DreamFactory\NamedQuery\Services\SgcCircuitBreaker;
 use Yamaha\DreamFactory\NamedQuery\Http\Middleware\RequestTracingMiddleware;
+use Yamaha\DreamFactory\NamedQuery\Http\Middleware\RateLimitMiddleware;
 use Yamaha\DreamFactory\NamedQuery\Http\HealthCheckService;
 
 class ServiceProvider extends \Illuminate\Support\ServiceProvider
@@ -43,6 +45,15 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
             $router = $this->app['router'] ?? null;
             if ($router && method_exists($router, 'pushMiddlewareToGroup')) {
                 $router->pushMiddlewareToGroup('api', RequestTracingMiddleware::class);
+            }
+        } catch (\Throwable $ignored) {}
+
+        // RQ-LIM — RateLimit token bucket per client_key/role/route via Cache file/redis, headers X-RateLimit, 429 + Retry-After
+        // CACHE_STORE=file (dev) / redis (prod) — sem quebrar nginx-dreamfactory.conf
+        try {
+            $router = $this->app['router'] ?? null;
+            if ($router && method_exists($router, 'pushMiddlewareToGroup')) {
+                $router->pushMiddlewareToGroup('api', RateLimitMiddleware::class);
             }
         } catch (\Throwable $ignored) {}
 
@@ -83,9 +94,19 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
         $this->app->alias(DialectCapabilities::class, 'df.named-query.capabilities');
 
         // RQ-061 + RQ-086 + RQ-087 — SGA+SGC nativo v2 (substitui api-query) — singletons df.sga/df.sgc/df.sga-sgc-orchestrator
-        $this->app->singleton(SgcConnectionClient::class, fn () => new SgcConnectionClient());
+        $this->app->singleton(SgcConnectionClient::class, fn () => new SgcConnectionClient(
+            env('SGC_ENDPOINT', 'http://172.31.16.89/SGC/WsConexao'),
+            (int) env('SGC_TIMEOUT_MS', 3000),
+            (int) env('SGC_MAX_BYTES', 1048576),
+            array_filter(array_map('trim', explode(',', (string) env('SGC_ALLOWLIST', '172.31.16.89'))))
+        ));
         $this->app->alias(SgcConnectionClient::class, 'df.sgc');
-        $this->app->singleton(SgaClient::class, fn () => new SgaClient());
+        $this->app->singleton(SgaClient::class, fn () => new SgaClient(
+            env('SGA_ENDPOINT', 'http://172.31.16.89/SGA/WsAcesso'),
+            (int) env('SGA_TIMEOUT_MS', 3000),
+            (int) env('SGA_MAX_BYTES', 1048576),
+            array_filter(array_map('trim', explode(',', (string) env('SGA_ALLOWLIST', '172.31.16.89'))))
+        ));
         $this->app->alias(SgaClient::class, 'df.sga');
         $this->app->singleton(SgcCircuitBreaker::class, fn () => new SgcCircuitBreaker());
         $this->app->alias(SgcCircuitBreaker::class, 'df.sgc.circuit-breaker');
@@ -146,6 +167,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                 'label' => 'PostgreSQL with Named Queries',
                 'description' => 'Native PostgreSQL service with the read-only _query resource.',
                 'group' => ServiceTypeGroups::DATABASE,
+                'subscriptionRequired' => LicenseLevel::GOLD,
                 'config_handler' => PgSqlDbConfig::class,
                 'factory' => function (array $config) {
                     return new QueryPostgreSql($config);

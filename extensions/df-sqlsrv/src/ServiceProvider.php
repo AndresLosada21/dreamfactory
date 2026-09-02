@@ -3,6 +3,7 @@
 namespace Yamaha\DreamFactory\SqlServer;
 
 use DreamFactory\Core\Components\DbSchemaExtensions;
+use DreamFactory\Core\Enums\LicenseLevel;
 use DreamFactory\Core\Enums\ServiceTypeGroups;
 use DreamFactory\Core\Services\ServiceManager;
 use DreamFactory\Core\Services\ServiceType;
@@ -26,6 +27,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                 'label' => 'SQL Server',
                 'description' => 'Independent SQL Server database service using pdo_sqlsrv. Requires Microsoft ODBC Driver (external, not redistributed — see https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server). Encrypt defaults to Yes.',
                 'group' => ServiceTypeGroups::DATABASE,
+                'subscriptionRequired' => LicenseLevel::GOLD,
                 'config_handler' => SqlServerConfig::class,
                 'factory' => function (array $config) {
                     return new SqlServer($config);
