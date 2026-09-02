@@ -16,6 +16,7 @@ class SgcConnectionClient
     public const SOAP_ACTION = 'getConexaoById';
     public const NAMESPACE = 'http://WsConexao.ws.sgc.yamaha.com.br/';
     public const TIMEOUT_MS = 3000;
+    public const WSDL_SGC = 'http://172.31.16.89:80/SGC/WsConexao';
 
     private string $endpoint;
     private int $timeoutMs;
@@ -26,9 +27,9 @@ class SgcConnectionClient
     {
         $endpointFromConfig = '';
         try {
-            $endpointFromConfig = (string) config('sgc.endpoint', env('SGC_ENDPOINT', ''));
+            $endpointFromConfig = (string) config('sgc.endpoint', env('SGC_ENDPOINT', self::WSDL_SGC));
         } catch (\Throwable $ignored) {
-            $endpointFromConfig = (string) (function_exists('env') ? env('SGC_ENDPOINT', '') : '');
+            $endpointFromConfig = (string) (function_exists('env') ? env('SGC_ENDPOINT', self::WSDL_SGC) : self::WSDL_SGC);
         }
         $this->endpoint = $endpoint ?: $endpointFromConfig;
         $this->timeoutMs = $timeoutMs;
@@ -38,12 +39,14 @@ class SgcConnectionClient
         if (empty($this->allowlistHosts)) {
             $cfg = '';
             try {
-                $cfg = config('sgc.allowlist', env('SGC_ALLOWLIST', ''));
+                $cfg = config('sgc.allowlist', env('SGC_ALLOWLIST', '172.31.16.89'));
             } catch (\Throwable $ignored) {
-                $cfg = (string) (function_exists('env') ? env('SGC_ALLOWLIST', '') : '');
+                $cfg = (string) (function_exists('env') ? env('SGC_ALLOWLIST', '172.31.16.89') : '172.31.16.89');
             }
             if (!empty($cfg)) {
                 $this->allowlistHosts = array_map('trim', explode(',', (string) $cfg));
+            } else {
+                $this->allowlistHosts = ['172.31.16.89'];
             }
         }
     }
