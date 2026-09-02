@@ -13,6 +13,9 @@ import {
   DfAlertComponent,
 } from '../../shared/components/df-alert/df-alert.component';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { URLS } from '../../shared/constants/urls';
+import { SHOW_LOADING_HEADER } from '../../shared/constants/http-headers';
 import { ROUTES } from '../../shared/types/routes';
 import { getIcon, iconExist } from '../../shared/utilities/icons';
 import { LoginCredentials } from '../../shared/types/user-management';
@@ -90,7 +93,8 @@ export class DfLoginComponent implements OnInit {
     private activatedRoute: ActivatedRoute,
     private themeService: DfThemeService,
     private snackbarService: DfSnackbarService,
-    private popupOverlay: PopupOverlayService
+    private popupOverlay: PopupOverlayService,
+    private http: HttpClient
   ) {
     this.loginForm = this.fb.group({
       services: [''],
@@ -156,6 +160,58 @@ export class DfLoginComponent implements OnInit {
   }
 
   /**
+   * Login com conta do SGA (matricula): sincroniza conta/papel no DF
+   * e entra com o email espelhado, sem passo manual.
+   */
+  loginViaSga(codUsuario: string, password: string) {
+    this.http
+      .post<{ email: string; dfRole: string }>(
+        URLS.SGA_SYNC,
+        { codUsuario, dscSenha: password, nomSistema: 'DF' },
+        { headers: SHOW_LOADING_HEADER }
+      )
+      .pipe(
+        catchError(err => {
+          const appError = normalizeError(err);
+          this.alertMsg = appError.message;
+          this.showAlert = true;
+          return throwError(() => appError);
+        })
+      )
+      .subscribe(res => {
+        this.showAlert = false;
+        const credentials: LoginCredentials = {
+          email: res.email,
+          password,
+        };
+        this.authService
+          .login(credentials)
+          .pipe(
+            catchError(err => {
+              const appError = normalizeError(err);
+              this.alertMsg = appError.message;
+              this.showAlert = true;
+              return throwError(() => appError);
+            })
+          )
+          .subscribe(() => {
+            this.showAlert = false;
+            const returnUrl =
+              this.activatedRoute.snapshot.queryParams['returnUrl'];
+            if (
+              typeof returnUrl === 'string' &&
+              returnUrl.startsWith('/') &&
+              !returnUrl.startsWith('//')
+            ) {
+              this.router.navigateByUrl(returnUrl);
+            } else {
+              this.router.navigate([ROUTES.HOME]);
+            }
+          });
+      });
+  }
+
+  /**
    * Build the OAuth/SAML SSO URL, preserving any pending external redirect.
    * When an external redirect URL is stored (e.g. from an MCP OAuth flow),
    * it is appended as a query parameter so the DreamFactory OAuth callback
@@ -173,6 +229,18 @@ export class DfLoginComponent implements OnInit {
   }
 
   login() {
+    const identifier = String(
+      this.loginForm.value.username || this.loginForm.value.email || ''
+    ).trim();
+    const typedPassword = String(this.loginForm.value.password || '');
+    if (!typedPassword) {
+      return;
+    }
+    // Conta do SGA (matricula, sem @): espelha no DF e entra sozinho.
+    if (identifier && !identifier.includes('@')) {
+      this.loginViaSga(identifier, typedPassword);
+      return;
+    }
     if (this.loginForm.invalid) {
       return;
     }

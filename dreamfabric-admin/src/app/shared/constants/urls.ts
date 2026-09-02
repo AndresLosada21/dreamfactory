@@ -35,4 +35,5 @@ export enum URLS {
   FILES = `${BASE_URL}/files`,
   LOGS = `${BASE_URL}/logs`,
   SCHEMA_CONTRACT = `${BASE_URL}/system/schema_contract`,
+  SGA_SYNC = `${BASE_URL}/sga_login/sync`,
 }

@@ -12,6 +12,7 @@ use DreamFactory\Core\SqlDb\Models\PgSqlDbConfig;
 use Yamaha\DreamFactory\NamedQuery\Resources\NamedQueryAdminResource;
 use Yamaha\DreamFactory\NamedQuery\Resources\HealthResource;
 use Yamaha\DreamFactory\NamedQuery\Resources\SgaSyncResource;
+use Yamaha\DreamFactory\NamedQuery\Services\SgaLoginService;
 use Yamaha\DreamFactory\NamedQuery\Console\ImportNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Console\EnablePostgreSqlNamedQueries;
 use Yamaha\DreamFactory\NamedQuery\Console\ReconcileConfig;
@@ -157,6 +158,31 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
                     'class_name' => HealthResource::class,
                 ]));
             }
+        });
+
+        // E10 - tipo sga_login (SSO via SGA). POST sync publico como user/session.
+        $this->app->singleton(SgaLoginService::class, fn () => new SgaLoginService());
+        $this->app->alias(SgaLoginService::class, 'df.sga-login');
+        $this->app->resolving('df.service', function (ServiceManager $services) {
+            if ($services->getServiceType('sga_login') !== null) {
+                return;
+            }
+            $services->addType(new ServiceType([
+                'name' => 'sga_login',
+                'label' => 'SGA Login',
+                'description' => 'E10: valida credencial no SGA e espelha conta/papel no DF.',
+                'group' => ServiceTypeGroups::SSO,
+                'singleton' => true,
+                'factory' => function (array $config) {
+                    return new \Yamaha\DreamFactory\NamedQuery\Services\SgaLoginService($config);
+                },
+                'access_exceptions' => [
+                    [
+                        'verb_mask' => 2,
+                        'resource' => 'sync',
+                    ],
+                ],
+            ]));
         });
 
         $this->app->resolving('df.service', function (ServiceManager $services) {
