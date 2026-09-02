@@ -2,5 +2,15 @@
   *ngIf="paywall; else allowed"
   [serviceName]="'Services'"></df-paywall>
 <ng-template #allowed>
+  <div *ngIf="showSgaSync" class="sga-sync-bar">
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="syncSga()"
+      [disabled]="syncing">
+      {{ syncing ? 'Sincronizando...' : 'Sync SGA' }}
+    </button>
+  </div>
   <df-manage-services-table></df-manage-services-table>
 </ng-template>

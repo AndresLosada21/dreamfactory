@@ -3,6 +3,7 @@
 namespace Yamaha\DreamFactory\NamedQuery\Services;
 
 use DreamFactory\Core\Services\BaseRestService;
+use Yamaha\DreamFactory\NamedQuery\Resources\SgaSyncConnectionsResource;
 use Yamaha\DreamFactory\NamedQuery\Resources\SgaSyncResource;
 
 /**
@@ -17,6 +18,11 @@ class SgaLoginService extends BaseRestService
             'name' => 'sync',
             'class_name' => SgaSyncResource::class,
             'label' => 'SGA Sync Login',
+        ],
+        'connections' => [
+            'name' => 'connections',
+            'class_name' => SgaSyncConnectionsResource::class,
+            'label' => 'SGA Database Sync',
         ],
     ];
 }

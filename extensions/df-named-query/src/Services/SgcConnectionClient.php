@@ -177,6 +177,55 @@ class SgcConnectionClient
         return $this->getConexaoById((int) $id);
     }
 
+    /**
+     * E10 — lista as conexoes vinculadas a um sistema no SGC.
+     * Espelha SGC WsConexao.getListaConexaoSistema(nomSistema).
+     * Retorna lista de MBeanConexao (array). Lista vazia = sem vinculo.
+     */
+    public function getListaConexaoSistema(string $nomSistema): array
+    {
+        $nomSistema = trim($nomSistema);
+        if ($nomSistema === '') {
+            throw new \InvalidArgumentException('nomSistema required');
+        }
+        $this->validateConfiguration();
+        if (!$this->isConfigured()) {
+            throw new \RuntimeException('Endpoint SGC nao configurado');
+        }
+        $soapBody = $this->soapBodyListaConexaoSistema($nomSistema);
+        if (strlen($soapBody) > self::BODY_LIMIT) {
+            throw new \RuntimeException('SOAP BODY exceeds 1MB limit');
+        }
+        $response = $this->sendWithTimeout($soapBody);
+        $status = $response['status'] ?? 0;
+        if ($status < 200 || $status >= 300) {
+            $this->logSanitized('sgc.non2xx', ['host' => parse_url($this->endpoint, PHP_URL_HOST), 'status' => $status, 'nomSistema' => $nomSistema]);
+            throw new \RuntimeException('SGC respondeu HTTP ' . $status);
+        }
+        $body = $response['body'] ?? '';
+        if (strlen($body) > $this->maxResponseBytes) {
+            throw new \RuntimeException('SGC response exceeds BODY limit 1MB');
+        }
+        if (str_contains($body, '@@@ERRO@@@')) {
+            $this->logSanitized('sgc.erro_marker', ['host' => parse_url($this->endpoint, PHP_URL_HOST), 'nomSistema' => $nomSistema]);
+            throw new \RuntimeException('SGC falhou ao listar conexoes do sistema: ' . $nomSistema);
+        }
+        $innerJson = $this->readSoapReturn($body);
+        if (str_contains($innerJson, '@@@ERRO@@@')) {
+            throw new \RuntimeException('SGC falhou ao listar conexoes do sistema: ' . $nomSistema);
+        }
+        $data = json_decode(trim($innerJson) === '' ? '[]' : $innerJson, true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+        // Normaliza: garante lista (WS retorna objeto unico quando ha 1 vinculo)
+        if ($data !== [] && !array_is_list($data)) {
+            $data = [$data];
+        }
+        $this->logSanitized('sgc.lista.success', ['host' => parse_url($this->endpoint, PHP_URL_HOST), 'nomSistema' => $nomSistema, 'count' => count($data), 'status' => $status]);
+        return array_values($data);
+    }
+
     private function soapBody(int $codConexao): string
     {
         // SOAP envelope matching SgcConnectionClient.java:123-134
@@ -190,6 +239,24 @@ class SgcConnectionClient
     <ws:getConexaoById>
       <codConexao>{$id}</codConexao>
     </ws:getConexaoById>
+  </soapenv:Body>
+</soapenv:Envelope>
+XML;
+    }
+
+    private function soapBodyListaConexaoSistema(string $nomSistema): string
+    {
+        // Espelha SGC WsConexao.getListaConexaoSistema(nomSistema) — RPC.
+        $ns = self::NAMESPACE;
+        $n = htmlspecialchars($nomSistema, ENT_XML1);
+        return <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ws="{$ns}">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ws:getListaConexaoSistema>
+      <nomSistema>{$n}</nomSistema>
+    </ws:getListaConexaoSistema>
   </soapenv:Body>
 </soapenv:Envelope>
 XML;
