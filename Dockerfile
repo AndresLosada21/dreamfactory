@@ -72,6 +72,9 @@ RUN sed -i "s/min:16/min:8/g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/
 RUN sed -i "s|return LicenseLevel::OPEN_SOURCE;|return LicenseLevel::GOLD; // premium Determinus|g" /opt/dreamfactory/vendor/dreamfactory/df-core/src/Utility/Environment.php 2>/dev/null || true; \
     sed -i "s|this.showBanner = license === 'OPEN SOURCE' || isTrial;|this.showBanner = false; // premium Determinus|g" /opt/dreamfactory/public/dreamfactory/src/app/shared/components/df-engagement-banner/df-engagement-banner.component.ts 2>/dev/null || true
 
+COPY docker/patch-service-gold.php /tmp/patch-service-gold.php
+RUN php /tmp/patch-service-gold.php 2>&1 | head -5
+
 RUN sed -i 's/\r$//' /usr/local/bin/dreamfactory-entrypoint /etc/nginx/sites-available/dreamfactory.conf 2>/dev/null || true; \
     chmod 755 /usr/local/bin/dreamfactory-entrypoint
 
