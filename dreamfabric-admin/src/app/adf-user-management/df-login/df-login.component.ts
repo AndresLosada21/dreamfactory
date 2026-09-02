@@ -36,7 +36,6 @@ import { UntilDestroy } from '@ngneat/until-destroy';
 import { DfThemeService } from 'src/app/shared/services/df-theme.service';
 import { CommonModule } from '@angular/common';
 import { DfSnackbarService } from 'src/app/shared/services/df-snackbar.service';
-import { PopupOverlayService } from 'src/app/shared/components/df-popup/popup-overlay.service';
 import { normalizeError } from 'src/app/shared/utilities/app-error';
 
 @UntilDestroy({ checkProperties: true })
@@ -65,7 +64,6 @@ import { normalizeError } from 'src/app/shared/utilities/app-error';
   ],
 })
 export class DfLoginComponent implements OnInit {
-  private readonly MINIMUM_PASSWORD_LENGTH = 16;
   alertMsg = '';
   showAlert = false;
   alertType: AlertType = 'error';
@@ -93,7 +91,6 @@ export class DfLoginComponent implements OnInit {
     private activatedRoute: ActivatedRoute,
     private themeService: DfThemeService,
     private snackbarService: DfSnackbarService,
-    private popupOverlay: PopupOverlayService,
     private http: HttpClient
   ) {
     this.loginForm = this.fb.group({
@@ -245,8 +242,6 @@ export class DfLoginComponent implements OnInit {
       return;
     }
 
-    const isPasswordTooShort =
-      this.loginForm.value.password.length < this.MINIMUM_PASSWORD_LENGTH;
     const credentials: LoginCredentials = {
       password: this.loginForm.value.password,
     };
@@ -264,26 +259,13 @@ export class DfLoginComponent implements OnInit {
       .pipe(
         catchError(err => {
           const appError = normalizeError(err);
-          if (appError.status === 401 && isPasswordTooShort) {
-            this.popupOverlay.open({
-              message: `It looks like your password is too short. Our new system requires at least ${this.MINIMUM_PASSWORD_LENGTH} characters. Please reset your password to continue.`,
-              showRemindMeLater: false,
-            });
-          } else {
-            this.alertMsg = appError.message;
-            this.showAlert = true;
-          }
+          this.alertMsg = appError.message;
+          this.showAlert = true;
           return throwError(() => appError);
         })
       )
       .subscribe(() => {
         this.showAlert = false;
-        if (isPasswordTooShort) {
-          this.popupOverlay.open({
-            message: `Your current password is shorter than recommended (less than ${this.MINIMUM_PASSWORD_LENGTH} characters). For better security, we recommend updating your password to a longer one.`,
-            showRemindMeLater: true,
-          });
-        }
         // Honor a validated internal returnUrl (set by the 401 interceptor
         // redirect or loggedInGuard); anything else goes home.
         const returnUrl = this.activatedRoute.snapshot.queryParams['returnUrl'];
