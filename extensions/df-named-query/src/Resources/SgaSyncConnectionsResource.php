@@ -58,16 +58,15 @@ class SgaSyncConnectionsResource extends BaseRestResource
     private function checkAdmin(): void
     {
         try {
+            if (method_exists(Session::class, 'isSysAdmin')) {
+                if (!Session::isSysAdmin()) {
+                    throw new ForbiddenException('Admin required for SGA database sync.');
+                }
+                return;
+            }
             $userId = Session::getCurrentUserId();
             if (empty($userId)) {
                 throw new UnauthorizedException('Admin required for SGA database sync.');
-            }
-            if (method_exists(Session::class, 'checkServicePermission')) {
-                try {
-                    Session::checkServicePermission('system', 'GET');
-                } catch (\Throwable $e) {
-                    throw new ForbiddenException('Admin required for SGA database sync.');
-                }
             }
         } catch (UnauthorizedException $e) {
             throw $e;
