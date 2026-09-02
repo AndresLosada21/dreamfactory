@@ -56,6 +56,7 @@ COPY extensions/df-oracle /opt/dreamfactory/vendor/yamaha/df-oracle
 COPY extensions/df-sqlsrv /opt/dreamfactory/vendor/yamaha/df-sqlsrv
 COPY extensions/df-informix /opt/dreamfactory/vendor/yamaha/df-informix
 COPY extensions/df-named-query /opt/dreamfactory/vendor/yamaha/df-named-query
+COPY extensions/df-premium-stub /opt/dreamfactory/vendor/yamaha/df-premium-stub
 RUN cd /opt/dreamfactory && composer install --no-interaction --ignore-platform-reqs --optimize-autoloader 2>&1 | tail -30 && composer dump-autoload --optimize --no-interaction 2>&1 | tail -20 && php artisan package:discover --ansi 2>&1 | tail -20 && php artisan config:clear 2>&1 | tail -5 && php artisan cache:clear 2>&1 | tail -5 && chown -R www-data:www-data bootstrap/cache storage vendor 2>/dev/null || true
 
 # MCP daemon utils patch (hot reload compat)

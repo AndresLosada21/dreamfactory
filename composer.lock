@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7e336f3a853ef87b31c15c495e678560",
+    "content-hash": "cfa206fe8dc0372ec3490b2aa255b118",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -13064,6 +13064,40 @@
                 "Apache-2.0"
             ],
             "description": "Independent Oracle database service for DreamFactory.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "yamaha/df-premium-stub",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "extensions/df-premium-stub",
+                "reference": "2c0c59963a30dc9cf8a29b74f7c00bf9a97c6828"
+            },
+            "require": {
+                "dreamfactory/df-core": "~1.0",
+                "dreamfactory/df-system": "~0.6.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Yamaha\\DreamFactory\\PremiumStub\\ServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Yamaha\\DreamFactory\\PremiumStub\\": "src/"
+                }
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "description": "Premium stub — unlock Rate Limiting, Scheduler, Event Scripts, LDAP via GOLD mock (Determinus).",
             "transport-options": {
                 "symlink": false,
                 "relative": true

@@ -20,7 +20,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertStringContainsString('isFeatureLocked', $c);
         self::assertStringContainsString('return false', $c);
         self::assertStringContainsString('premium Determinus', $c);
-        self::assertTrue(false, 'TDD RED PREM01: falta isFeatureLocked return false // premium');
     }
 
     public function test_prem02_paywall_activatePaywall_returns_of_false(): void
@@ -30,7 +29,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertStringContainsString('activatePaywall', $c);
         self::assertStringContainsString('of(false)', $c);
         self::assertStringContainsString('premium Determinus', $c);
-        self::assertTrue(false, 'TDD RED PREM02: falta activatePaywall of(false)');
     }
 
     public function test_prem03_side_nav_license_expired_hidden(): void
@@ -39,7 +37,6 @@ class TddUltraSprint4Test extends TestCase
         $c = file_exists($f) ? file_get_contents($f) : '';
         self::assertStringContainsString('license-expired', $c);
         self::assertStringContainsString('*ngIf="false"', $c);
-        self::assertTrue(false, 'TDD RED PREM03: falta side-nav *ngIf false');
     }
 
     public function test_prem04_license_check_mock_gold(): void
@@ -49,7 +46,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertStringContainsString('premium Determinus', $c);
         self::assertStringContainsString("msg: 'OK'", $c);
         self::assertStringContainsString("disableUi: 'false'", $c);
-        self::assertTrue(false, 'TDD RED PREM04: falta license-check mock GOLD');
     }
 
     public function test_prem05_license_initializer_mock(): void
@@ -58,7 +54,6 @@ class TddUltraSprint4Test extends TestCase
         $c = file_exists($f) ? file_get_contents($f) : '';
         self::assertStringContainsString('premium Determinus', $c);
         self::assertStringContainsString('of(true)', $c);
-        self::assertTrue(false, 'TDD RED PREM05: falta license-initializer mock');
     }
 
     public function test_prem06_dist_main_isFeatureLocked_patched(): void
@@ -67,7 +62,6 @@ class TddUltraSprint4Test extends TestCase
         $c = file_exists($f) ? file_get_contents($f) : '';
         self::assertStringContainsString('isFeatureLocked', $c);
         self::assertStringContainsString('return!1', $c);
-        self::assertTrue(false, 'TDD RED PREM06: falta dist patched isFeatureLocked');
     }
 
     public function test_prem07_dist_main_activatePaywall_patched(): void
@@ -76,7 +70,6 @@ class TddUltraSprint4Test extends TestCase
         $c = file_exists($f) ? file_get_contents($f) : '';
         self::assertStringContainsString('activatePaywall', $c);
         self::assertStringContainsString('premium Determinus', $c);
-        self::assertTrue(false, 'TDD RED PREM07: falta dist patched activatePaywall');
     }
 
     public function test_prem08_extension_premium_stub_exists(): void
@@ -85,7 +78,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertFileExists($f);
         $c = file_get_contents($f);
         self::assertStringContainsString('yamaha/df-premium-stub', $c);
-        self::assertTrue(false, 'TDD RED PREM08: falta extension df-premium-stub');
     }
 
     public function test_prem09_limit_resource_exists(): void
@@ -95,7 +87,6 @@ class TddUltraSprint4Test extends TestCase
         $c = file_get_contents($f);
         self::assertStringContainsString('class LimitResource', $c);
         self::assertStringContainsString('handleGET', $c);
-        self::assertTrue(false, 'TDD RED PREM09: falta LimitResource');
     }
 
     public function test_prem10_scheduler_resource_exists(): void
@@ -104,7 +95,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertFileExists($f);
         $c = file_get_contents($f);
         self::assertStringContainsString('class SchedulerResource', $c);
-        self::assertTrue(false, 'TDD RED PREM10: falta SchedulerResource');
     }
 
     public function test_prem11_event_script_resource_exists(): void
@@ -113,7 +103,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertFileExists($f);
         $c = file_get_contents($f);
         self::assertStringContainsString('class EventScriptResource', $c);
-        self::assertTrue(false, 'TDD RED PREM11: falta EventScriptResource');
     }
 
     public function test_prem12_script_type_resource_exists(): void
@@ -122,7 +111,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertFileExists($f);
         $c = file_get_contents($f);
         self::assertStringContainsString('class ScriptTypeResource', $c);
-        self::assertTrue(false, 'TDD RED PREM12: falta ScriptTypeResource');
     }
 
     public function test_prem13_service_provider_registers_premium_types(): void
@@ -136,7 +124,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertStringContainsString("'event_script'", $c);
         self::assertStringContainsString('ServiceType', $c);
         self::assertStringContainsString('LDAP', $c);
-        self::assertTrue(false, 'TDD RED PREM13: falta ServiceProvider registers');
     }
 
     public function test_prem14_ldap_service_type_exists(): void
@@ -145,7 +132,6 @@ class TddUltraSprint4Test extends TestCase
         self::assertFileExists($f);
         $c = file_get_contents($f);
         self::assertStringContainsString('class LdapService', $c);
-        self::assertTrue(false, 'TDD RED PREM14: falta LdapService');
     }
 
     public function test_prem15_composer_registers_premium_stub_path(): void
@@ -154,6 +140,5 @@ class TddUltraSprint4Test extends TestCase
         $c = file_exists($f) ? file_get_contents($f) : '';
         self::assertStringContainsString('df-premium-stub', $c);
         self::assertStringContainsString('yamaha/df-premium-stub', $c);
-        self::assertTrue(false, 'TDD RED PREM15: falta composer path df-premium-stub');
     }
 }

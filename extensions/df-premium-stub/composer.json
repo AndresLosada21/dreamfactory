@@ -1,0 +1,23 @@
+{
+  "name": "yamaha/df-premium-stub",
+  "description": "Premium stub — unlock Rate Limiting, Scheduler, Event Scripts, LDAP via GOLD mock (Determinus).",
+  "license": "Apache-2.0",
+  "type": "library",
+  "version": "0.1.0",
+  "require": {
+    "dreamfactory/df-core": "~1.0",
+    "dreamfactory/df-system": "~0.6.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Yamaha\\DreamFactory\\PremiumStub\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Yamaha\\DreamFactory\\PremiumStub\\ServiceProvider"
+      ]
+    }
+  }
+}
