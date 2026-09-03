@@ -56,7 +56,7 @@ Cobertura atual: login, conta, RBAC, users, audit, databases SGC, tela Admins.
 
 | # | Ponto | Status | Rota |
 |---|---|---|---|
-| R1 | Wave 3: sendEmail + jobs | ABERTA | #127 |
+| R1 | Wave 3: sendEmail (OUT, DF dono) + jobs read-model + tela | ENTREGUE #127 |
 | R2 | Troca/reset de senha: SGA nao reseta senha (dono) | OUT (descartado) | -- |
 | R3 | Tela de auditoria no admin (resource audit só tem API) | GAP | Wave 5 candidata (UI) |
 | R4 | Catálogo de perfis (`getListaPerfil`) + sistemas (`getSistemasWeb/Desktop/Mobile`) | Menor | Wave 6 candidata |
