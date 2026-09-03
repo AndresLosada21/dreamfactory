@@ -100,6 +100,14 @@ export class DfAdminSettingsOverviewComponent {
           action: 'View audit',
           category: 'docs',
         },
+        {
+          icon: 'browse_activity',
+          title: 'SGA Jobs',
+          text: 'Review internal SGA batches read-only.',
+          route: `/${ROUTES.ADMIN_SETTINGS}/${ROUTES.SGA_JOBS}`,
+          action: 'View jobs',
+          category: 'docs',
+        },
       ],
     },
   ];

@@ -57,6 +57,7 @@ export enum ROUTES {
   USERS = 'users',
   FILES = 'files',
   SGA_AUDIT = 'sga-audit',
+  SGA_JOBS = 'sga-jobs',
   LAUNCHPAD = 'launchpad',
   DATA = 'data',
   PACKAGES = 'package-manager',

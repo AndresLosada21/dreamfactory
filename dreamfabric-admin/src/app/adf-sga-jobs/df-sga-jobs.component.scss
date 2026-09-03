@@ -1,0 +1,28 @@
+.sga-jobs-card {
+  margin: var(--df-page-gutter, 24px);
+  max-width: var(--df-content-max, 1200px);
+}
+
+.sga-jobs-icon {
+  font-size: 28px;
+  margin-right: 12px;
+  align-self: center;
+}
+
+.sga-jobs-error {
+  color: var(--mat-form-field-error-text-color, #b3261e);
+  font-weight: 500;
+}
+
+.sga-jobs-total {
+  font-weight: 500;
+}
+
+.sga-jobs-table {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.sga-jobs-empty {
+  opacity: 0.7;
+}

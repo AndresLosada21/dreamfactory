@@ -881,6 +881,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: ROUTES.SGA_JOBS,
+        loadComponent: () =>
+          import('./adf-sga-jobs/df-sga-jobs.component').then(
+            m => m.DfSgaJobsComponent
+          ),
+      },
+      {
         path: ROUTES.FILES,
         data: { type: 'files' },
         children: [

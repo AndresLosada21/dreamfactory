@@ -38,4 +38,5 @@ export enum URLS {
   SGA_SYNC = `${BASE_URL}/sga_login/sync`,
   SGA_SYNC_CONNECTIONS = `${BASE_URL}/sga_login/connections`,
   SGA_SYNC_AUDIT = `${BASE_URL}/sga_login/audit`,
+  SGA_SYNC_JOBS = `${BASE_URL}/sga_login/jobs`,
 }

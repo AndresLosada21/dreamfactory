@@ -728,6 +728,10 @@
       "sga-audit": {
         "nav": "SGA Audit",
         "header": "SGA Audit"
+      },
+      "sga-jobs": {
+        "nav": "SGA Jobs",
+        "header": "SGA Jobs"
       }
     },
     "profile": {
