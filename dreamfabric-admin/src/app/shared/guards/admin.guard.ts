@@ -19,6 +19,12 @@ export const rootAdminGuard = () => {
   return userDataService.userData$.pipe(
     filter((user): user is UserSession => user !== null),
     take(1),
-    map(user => (user.isRootAdmin ? true : router.createUrlTree([ROUTES.HOME])))
+    map(user => {
+      // O backend (Session::getPublicInfo) nao envia isRootAdmin; sys_admin
+      // e o nivel maximo no OSS. Aceita isSysAdmin como fallback, mas
+      // respeita um false explicito futuro do backend (??, nao ||).
+      const isRoot = user.isRootAdmin ?? user.isSysAdmin;
+      return isRoot ? true : router.createUrlTree([ROUTES.HOME]);
+    })
   );
 };
