@@ -3,6 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatTableModule } from '@angular/material/table';
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+import { faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
 import { URLS } from '../shared/constants/urls';
 import { normalizeError } from 'src/app/shared/utilities/app-error';
 
@@ -30,54 +38,31 @@ function isoDate(d: Date): string {
 @Component({
   selector: 'df-sga-audit',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule],
-  template: `
-    <h1>SGA Audit</h1>
-    <p>Access trail mirrored from SGA (read-only).</p>
-    <div class="sga-audit-filters">
-      <label
-        >From
-        <input type="date" [(ngModel)]="datStart" name="datStart" />
-      </label>
-      <label
-        >To
-        <input type="date" [(ngModel)]="datEnd" name="datEnd" />
-      </label>
-      <button
-        mat-flat-button
-        color="primary"
-        type="button"
-        (click)="load()"
-        [disabled]="loading">
-        {{ loading ? 'Loading...' : 'Load' }}
-      </button>
-    </div>
-    <p *ngIf="error" class="sga-audit-error">{{ error }}</p>
-    <p *ngIf="report">Total: {{ report.total }}</p>
-    <table *ngIf="report && report.events.length">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>User</th>
-          <th>Name</th>
-          <th>Profile</th>
-          <th>Machine</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let e of report.events">
-          <td>{{ e.datAcesso }}</td>
-          <td>{{ e.codUsuario }}</td>
-          <td>{{ e.nomUsuario }}</td>
-          <td>{{ e.nomPerfil }}</td>
-          <td>{{ e.refMaquina }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p *ngIf="report && !report.events.length">No events in this range.</p>
-  `,
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatProgressBarModule,
+    MatTableModule,
+    FontAwesomeModule,
+  ],
+  templateUrl: './df-sga-audit.component.html',
+  styleUrls: ['./df-sga-audit.component.scss'],
 })
 export class DfSgaAuditComponent implements OnInit {
+  readonly columns = [
+    'datAcesso',
+    'codUsuario',
+    'nomUsuario',
+    'nomPerfil',
+    'refMaquina',
+  ];
+  readonly faHistory = faClockRotateLeft;
+
   datStart = '';
   datEnd = '';
   loading = false;
@@ -113,6 +98,7 @@ export class DfSgaAuditComponent implements OnInit {
         },
         error: err => {
           this.loading = false;
+          this.report = null;
           this.error = normalizeError(err).message;
         },
       });
