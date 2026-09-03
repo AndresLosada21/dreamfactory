@@ -5,13 +5,13 @@ namespace Yamaha\DreamFactory\NamedQuery\Services;
 use DreamFactory\Core\Models\Service;
 
 /**
- * RQ-021 — Abstração de capacidades por dialeto (driver-independent contract).
+ * RQ-021 â€” AbstraÃ§Ã£o de capacidades por dialeto (driver-independent contract).
  *
- * Expõe para cada driver (pgsql, oracle, sqlsrv, informix) se suporta:
- * named binds, quoting, metadata, timeout, cancel, paginação, normalização, JSON, LOB.
- * - Capabilities consultáveis pela UI/engine (GET /api/v2/{service}/_query/capabilities).
- * - Publish bloqueado quando feature exigida não é suportada pelo driver da service_id.
- * - Contrato independente do driver (generalização, não leak de PDO/OCI).
+ * ExpÃµe para cada driver (pgsql, oracle, sqlsrv, informix) se suporta:
+ * named binds, quoting, metadata, timeout, cancel, paginaÃ§Ã£o, normalizaÃ§Ã£o, JSON, LOB.
+ * - Capabilities consultÃ¡veis pela UI/engine (GET /api/v2/{service}/_query/capabilities).
+ * - Publish bloqueado quando feature exigida nÃ£o Ã© suportada pelo driver da service_id.
+ * - Contrato independente do driver (generalizaÃ§Ã£o, nÃ£o leak de PDO/OCI).
  *
  * file:line anchors:
  *  - src/Services/DialectCapabilities.php:1  (contrato)
@@ -36,7 +36,7 @@ class DialectCapabilities
      * @var array<string, array<string, mixed>>
      */
     private const MATRIX = [
-        // PostgreSQL (pgsql_query) — referência canônica
+        // PostgreSQL (pgsql_query) â€” referÃªncia canÃ´nica
         'pgsql' => [
             self::FEATURE_NAMED_BINDS => true,
             self::FEATURE_QUOTING => 'double', // "identifier"
@@ -74,7 +74,7 @@ class DialectCapabilities
         ],
         // Informix (PDO_INFORMIX / CSDK)
         'informix' => [
-            self::FEATURE_NAMED_BINDS => false, // positional ? only — PDO_INFORMIX limitation
+            self::FEATURE_NAMED_BINDS => true, // emulated ? only â€” PDO_INFORMIX limitation
             self::FEATURE_QUOTING => 'double',
             self::FEATURE_METADATA => true,     // systables/syscolumns
             self::FEATURE_TIMEOUT => false,     // no statement_timeout
@@ -156,8 +156,8 @@ class DialectCapabilities
     }
 
     /**
-     * Detecta capabilities exigidas por uma definição (sql/parameters/output_schema/budgets).
-     * Contrato independente do driver: inspeção estática do payload versionado.
+     * Detecta capabilities exigidas por uma definiÃ§Ã£o (sql/parameters/output_schema/budgets).
+     * Contrato independente do driver: inspeÃ§Ã£o estÃ¡tica do payload versionado.
      *
      * @return string[] feature keys exigidas
      */
@@ -169,7 +169,7 @@ class DialectCapabilities
         $budgets = $definition['budgets'] ?? [];
         $parameters = $definition['parameters'] ?? [];
 
-        // Pagination: max_rows budget OR SQL contiene cláusulas de paginação
+        // Pagination: max_rows budget OR SQL contiene clÃ¡usulas de paginaÃ§Ã£o
         if (array_key_exists('max_rows', is_array($budgets) ? $budgets : [])) {
             $required[] = self::FEATURE_PAGINATION;
         }
@@ -208,22 +208,22 @@ class DialectCapabilities
         // Named binds: :name occurrences (beyond pgsql casts ::)
         if (preg_match('/(?<!:):[A-Za-z_][A-Za-z0-9_]*/', $sql)) {
             // positional fallback still counts; but gate uses named_binds
-            // If driver não suporta named_binds, publish deve bloquear quando há parâmetro nomeado
+            // If driver nÃ£o suporta named_binds, publish deve bloquear quando hÃ¡ parÃ¢metro nomeado
             if (!empty($parameters)) {
                 $required[] = self::FEATURE_NAMED_BINDS;
             }
         }
 
-        // Metadata: se SQL referencia catálogos (information_schema, sys., systables) — implicit
-        // Não bloqueia; apenas registra que metadata é usado.
+        // Metadata: se SQL referencia catÃ¡logos (information_schema, sys., systables) â€” implicit
+        // NÃ£o bloqueia; apenas registra que metadata Ã© usado.
 
-        // Timeout/cancel/normalization são transversais — não inferidos do SQL.
+        // Timeout/cancel/normalization sÃ£o transversais â€” nÃ£o inferidos do SQL.
 
         return array_values(array_unique($required));
     }
 
     /**
-     * Valida se o driver suporta tudo que a definição exige; lança BadRequest se não.
+     * Valida se o driver suporta tudo que a definiÃ§Ã£o exige; lanÃ§a BadRequest se nÃ£o.
      *
      * @throws \DreamFactory\Core\Exceptions\BadRequestException
      */
@@ -250,7 +250,7 @@ class DialectCapabilities
     }
 
     /**
-     * Payload consultável pela UI/engine (independente do driver).
+     * Payload consultÃ¡vel pela UI/engine (independente do driver).
      */
     public static function payloadForDriver(string $driver): array
     {
@@ -273,3 +273,4 @@ class DialectCapabilities
         ];
     }
 }
+

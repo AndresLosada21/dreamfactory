@@ -33,6 +33,7 @@ class InformixConnector
         // RQ-024: LVARCHAR/TEXT/BYTE are handled via PDO type mapping in InformixSchema; transaction semantics via PDO.
         $pdo = new \PDO($dsn, $config['username'] ?? null, $config['password'] ?? null, $options);
         $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(\PDO::ATTR_EMULATE_PREPARES, true);
         // Owner-scoped schema is preserved in InformixSchema::getSchemas()/loadTableColumns via tabowner.
 
         return new Connection($pdo, $config['database'], $config['prefix'] ?? '', $config);

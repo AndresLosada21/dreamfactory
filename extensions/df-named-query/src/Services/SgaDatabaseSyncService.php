@@ -28,7 +28,7 @@ class SgaDatabaseSyncService
 
     /** tpoBanco (SGC) => [tipo do service DF, porta padrao] ou null (sem driver). */
     public const TYPE_MAP = [
-        'POSTGRES' => ['pgsql', 5432],
+        'POSTGRES' => ['pgsql_query', 5432],
         'SQL SERVER' => ['sqlsrv', 1433],
         'ORACLE' => ['oracle', 1521],
         'INFORMIX' => ['informix', 9088],
