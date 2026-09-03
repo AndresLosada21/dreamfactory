@@ -724,6 +724,10 @@
       "logs": {
         "nav": "{{logs}}",
         "header": "{{logs}}"
+      },
+      "sga-audit": {
+        "nav": "SGA Audit",
+        "header": "SGA Audit"
       }
     },
     "profile": {

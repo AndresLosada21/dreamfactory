@@ -874,6 +874,13 @@ export const routes: Routes = [
         ],
       },
       {
+        path: ROUTES.SGA_AUDIT,
+        loadComponent: () =>
+          import('./adf-sga-audit/df-sga-audit.component').then(
+            m => m.DfSgaAuditComponent
+          ),
+      },
+      {
         path: ROUTES.FILES,
         data: { type: 'files' },
         children: [

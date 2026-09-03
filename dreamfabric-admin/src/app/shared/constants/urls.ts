@@ -37,4 +37,5 @@ export enum URLS {
   SCHEMA_CONTRACT = `${BASE_URL}/system/schema_contract`,
   SGA_SYNC = `${BASE_URL}/sga_login/sync`,
   SGA_SYNC_CONNECTIONS = `${BASE_URL}/sga_login/connections`,
+  SGA_SYNC_AUDIT = `${BASE_URL}/sga_login/audit`,
 }

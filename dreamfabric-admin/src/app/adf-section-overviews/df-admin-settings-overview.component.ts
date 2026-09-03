@@ -92,6 +92,14 @@ export class DfAdminSettingsOverviewComponent {
           action: 'View logs',
           category: 'docs',
         },
+        {
+          icon: 'history',
+          title: 'SGA Audit',
+          text: 'Browse the SGA access trail mirrored read-only.',
+          route: `/${ROUTES.ADMIN_SETTINGS}/${ROUTES.SGA_AUDIT}`,
+          action: 'View audit',
+          category: 'docs',
+        },
       ],
     },
   ];
