@@ -6,6 +6,7 @@ use DreamFactory\Core\Services\BaseRestService;
 use Yamaha\DreamFactory\NamedQuery\Resources\SgaSyncConnectionsResource;
 use Yamaha\DreamFactory\NamedQuery\Resources\SgaSyncResource;
 use Yamaha\DreamFactory\NamedQuery\Resources\SgaSyncUsersResource;
+use Yamaha\DreamFactory\NamedQuery\Resources\SgaSyncAuditResource;
 
 /**
  * E10 — servico publico de login via SGA (sem chave de API).
@@ -29,6 +30,11 @@ class SgaLoginService extends BaseRestService
             'name' => 'users',
             'class_name' => SgaSyncUsersResource::class,
             'label' => 'SGA Users Sync',
+        ],
+        'audit' => [
+            'name' => 'audit',
+            'class_name' => SgaSyncAuditResource::class,
+            'label' => 'SGA Audit Sync',
         ],
     ];
 }
