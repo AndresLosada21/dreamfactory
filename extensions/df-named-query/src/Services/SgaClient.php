@@ -261,8 +261,103 @@ XML;
 XML;
     }
 
-    private function soapBodyGetPerfilById(int $idPerfil): string
+    /**
+     * Wave 1 — lista usuarios vinculados ao sistema (leitura).
+     * Espelha WsAcesso.getListaUsuarioBySistema(sglSistema).
+     */
+    public function getListaUsuarioBySistema(string $sglSistema): array
     {
+        if (trim($sglSistema) === '') {
+            throw new \InvalidArgumentException('sglSistema required');
+        }
+        $this->validateConfiguration();
+        if (!$this->isConfigured()) {
+            throw new \RuntimeException('Endpoint SGA nao configurado');
+        }
+        $ns = self::NAMESPACE;
+        $s = htmlspecialchars($sglSistema, ENT_XML1);
+        $soapBody = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ws="{$ns}">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ws:getListaUsuarioBySistema>
+      <sglSistema>{$s}</sglSistema>
+    </ws:getListaUsuarioBySistema>
+  </soapenv:Body>
+</soapenv:Envelope>
+XML;
+        $response = $this->sendWithTimeout($soapBody, 'getListaUsuarioBySistema');
+        $status = $response['status'] ?? 0;
+        if ($status < 200 || $status >= 300) {
+            throw new \RuntimeException('SGA respondeu HTTP ' . $status);
+        }
+        $body = $response['body'] ?? '';
+        if (str_contains($body, '@@@ERRO@@@')) {
+            throw new \RuntimeException('SGA getListaUsuarioBySistema falhou: ' . $sglSistema);
+        }
+        $inner = $this->readSoapReturn($body);
+        $data = json_decode(trim($inner) === '' ? '[]' : $inner, true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+        if ($data !== [] && !array_is_list($data)) {
+            $data = [$data];
+        }
+        $this->logSanitized('sga.getListaUsuarioBySistema.success', ['host' => parse_url($this->endpoint, PHP_URL_HOST), 'sglSistema' => $sglSistema, 'count' => count($data)]);
+        return array_values($data);
+    }
+
+    /**
+     * Wave 1 — perfis do usuario no sistema (leitura).
+     * Espelha WsAcesso.getListaPerfilUsuario(codUsuario, sglSistema).
+     */
+    public function getListaPerfilUsuario(string $codUsuario, string $sglSistema): array
+    {
+        if (trim($codUsuario) === '' || trim($sglSistema) === '') {
+            throw new \InvalidArgumentException('codUsuario and sglSistema required');
+        }
+        $this->validateConfiguration();
+        if (!$this->isConfigured()) {
+            throw new \RuntimeException('Endpoint SGA nao configurado');
+        }
+        $ns = self::NAMESPACE;
+        $u = htmlspecialchars($codUsuario, ENT_XML1);
+        $s = htmlspecialchars($sglSistema, ENT_XML1);
+        $soapBody = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ws="{$ns}">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ws:getListaPerfilUsuario>
+      <codUsuario>{$u}</codUsuario>
+      <sglSistema>{$s}</sglSistema>
+    </ws:getListaPerfilUsuario>
+  </soapenv:Body>
+</soapenv:Envelope>
+XML;
+        $response = $this->sendWithTimeout($soapBody, 'getListaPerfilUsuario');
+        $status = $response['status'] ?? 0;
+        if ($status < 200 || $status >= 300) {
+            throw new \RuntimeException('SGA respondeu HTTP ' . $status);
+        }
+        $body = $response['body'] ?? '';
+        if (str_contains($body, '@@@ERRO@@@')) {
+            throw new \RuntimeException('SGA getListaPerfilUsuario falhou: ' . $codUsuario);
+        }
+        $inner = $this->readSoapReturn($body);
+        $data = json_decode(trim($inner) === '' ? '[]' : $inner, true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+        if ($data !== [] && !array_is_list($data)) {
+            $data = [$data];
+        }
+        $this->logSanitized('sga.getListaPerfilUsuario.success', ['host' => parse_url($this->endpoint, PHP_URL_HOST), 'codUsuario' => $codUsuario, 'sglSistema' => $sglSistema, 'count' => count($data)]);
+        return array_values($data);
+    }
+
+    private function soapBodyGetPerfilById(int $idPerfil): string    {
         $ns = self::NAMESPACE;
         $id = (int) $idPerfil;
         return <<<XML
