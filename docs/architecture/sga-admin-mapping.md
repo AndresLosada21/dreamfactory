@@ -46,6 +46,22 @@ alerta em `skipped/needs_attention > 0`. Campos proibidos em log:
 
 ## Ondas propostas (entradas do EPIC)
 
-1. Users/profiles/accesses → modelo leitura DF + observabilidade.
-2. Audit/log SGA → feed DF Logs (expõe SOAP ou job + conector).
-3. Email templates + scheduler → sync DF.
+1. Users/profiles/accesses → modelo leitura DF + observabilidade. (ENTREGUE #125)
+2. Audit/log SGA → feed DF Logs (expõe SOAP ou job + conector). (ENTREGUE #126, via direta DF-side)
+3. Email templates + scheduler → sync DF. (ABERTA #127)
+
+## Varredura residual (2026-09-03, pós Waves 1/2/4)
+
+Cobertura atual: login, conta, RBAC, users, audit, databases SGC, tela Admins.
+
+| # | Ponto | Status | Rota |
+|---|---|---|---|
+| R1 | Wave 3: sendEmail + jobs | ABERTA | #127 |
+| R2 | Troca/reset de senha: sem superfície no SGA (nem SOAP nem controller) | GAP, requer decisão | Wave 5 candidata |
+| R3 | Tela de auditoria no admin (resource audit só tem API) | GAP | Wave 5 candidata (UI) |
+| R4 | Catálogo de perfis (`getListaPerfil`) + sistemas (`getSistemasWeb/Desktop/Mobile`) | Menor | Wave 6 candidata |
+| R5 | SGC `getConnectionBySystemAndReference` + `getListaConexao` (resolução por ref, picker) | Menor | Wave 6 candidata |
+| R6 | Disable em tempo real (sync é poll; SGA não tem push) | Limitação documentada | OUT salvo necessidade |
+| R7 | Workflow/documentos/aprovações SGA | BPM interno, sem contraparte DF | OUT |
+| R8 | Domínio RH (`WsDominio`, funcionários, turnos, papéis) | Sem domínio DF | OUT |
+| R9 | API Keys emitidas pelo SGA | Por desenho, SGA não emite | OUT |
