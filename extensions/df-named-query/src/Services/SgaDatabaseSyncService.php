@@ -115,6 +115,9 @@ class SgaDatabaseSyncService
         if (isset($parsed['service_name'])) {
             $config['service_name'] = $parsed['service_name'];
         }
+        if (isset($parsed['server'])) {
+            $config['server'] = $parsed['server'];
+        }
         $service->type = $dfType;
         $service->config = $config;
         $service->description = mb_substr(
@@ -213,6 +216,11 @@ class SgaDatabaseSyncService
                     $out['port'] = (int) $m[2];
                 }
                 $out['database'] = $m[3];
+            }
+            if (preg_match('/INFORMIXSERVER\s*=\s*([^:;\/\s]+)/i', $refUrl, $mm)) {
+                $out['server'] = trim($mm[1]);
+            } elseif (preg_match('/INFORMIXSERVER\s*=\s*([^:;\/\s]+)/i', $refDatabase, $mm)) {
+                $out['server'] = trim($mm[1]);
             }
         } else {
             if (preg_match('#^jdbc:[a-z]+://([^:/]+)(?::(\d+))?/([^?;]*?)(\?.*)?$#i', $refUrl, $m)) {
